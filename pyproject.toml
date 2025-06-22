@@ -1,7 +1,7 @@
 [project]
 name = "fastapi_guard_agent"
 version = "0.0.1"
-description = ""
+description = "Telemetry and monitoring agent for FastAPI Guard security middleware"
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
 ]
@@ -10,7 +10,7 @@ license = {text = "MIT"}
 homepage = "https://github.com/rennf93/fastapi-guard"
 requires-python = ">=3.10,<3.14"
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 3 - Alpha",
     "Framework :: FastAPI",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -20,12 +20,27 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: System :: Monitoring",
 ]
 dependencies = [
+    "aiohttp",
+    "fastapi",
+    "pydantic",
+    "typing-extensions",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "mypy",
+    "ruff",
+    "black",
+]
+redis = [
+    "redis",
 ]
 
 [build-system]
