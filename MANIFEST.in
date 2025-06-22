@@ -1,0 +1,3 @@
+include guard_agent/py.typed
+include LICENSE
+include README.md
