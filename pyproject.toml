@@ -26,18 +26,27 @@ classifiers = [
 dependencies = [
     "aiohttp",
     "fastapi",
+    "fastapi-guard",
     "pydantic",
     "typing-extensions",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "black",
+    "httpx",
+    "mkdocs",
+    "mkdocstrings",
+    "mkdocstrings-python",
+    "mkdocs-material",
+    "mypy",
+    "pre-commit",
+    "pymarkdownlnt",
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
-    "mypy",
+    "pytest-mock",
     "ruff",
-    "black",
 ]
 redis = [
     "redis",

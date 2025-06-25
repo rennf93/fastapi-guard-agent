@@ -8,6 +8,7 @@ This example shows how to:
 """
 
 import asyncio
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -18,6 +19,27 @@ from guard_agent import (
     SecurityEvent,
     SecurityMetric,
 )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan for FastAPI application."""
+    agent = await get_agent(AgentConfig(
+        api_key="demo-api-key-12345",
+        project_id="fastapi-demo",
+        buffer_size=50,
+        flush_interval=30,
+    ))
+    try:
+        yield
+    finally:
+        await agent.stop()
+
+
+async def get_agent(config: AgentConfig):
+    """Get agent instance."""
+    agent = guard_agent(config)
+    return agent
 
 
 async def basic_agent_usage():
@@ -114,7 +136,7 @@ def create_fastapi_app_with_agent():
     """Example of integrating agent with FastAPI application."""
     print("\n=== FastAPI Integration Example ===")
 
-    app = FastAPI(title="FastAPI Guard Agent Example")
+    app = FastAPI(title="FastAPI Guard Agent Example", lifespan=lifespan)
 
     # Configure agent
     agent_config = AgentConfig(
@@ -123,20 +145,6 @@ def create_fastapi_app_with_agent():
         buffer_size=50,
         flush_interval=30,
     )
-
-    @app.on_event("startup")
-    async def startup_event():
-        """Start the agent when FastAPI starts."""
-        agent = guard_agent(agent_config)
-        await agent.start()
-        print("FastAPI Guard Agent started with FastAPI application")
-
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        """Stop the agent when FastAPI shuts down."""
-        agent = guard_agent(agent_config)
-        await agent.stop()
-        print("FastAPI Guard Agent stopped with FastAPI application")
 
     @app.get("/")
     async def root():

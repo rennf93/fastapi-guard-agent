@@ -53,7 +53,15 @@ class SecurityEvent(BaseModel):
         "penetration_attempt",
         "behavioral_violation",
         "user_agent_blocked",
-        "custom_rule_triggered"
+        "custom_rule_triggered",
+        "decorator_violation",
+        "geo_lookup_failed",
+        "redis_error",
+        "dynamic_rule_applied",
+        "pattern_detected",
+        "access_denied",
+        "authentication_failed",
+        "content_filtered"
     ]
     ip_address: str
     country: str | None = None
@@ -64,6 +72,10 @@ class SecurityEvent(BaseModel):
     method: str | None = None
     status_code: int | None = None
     response_time: float | None = None
+    decorator_type: str | None = None
+    rule_type: str | None = None
+    pattern_matched: str | None = None
+    handler_name: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -88,13 +100,68 @@ class SecurityMetric(BaseModel):
 class DynamicRules(BaseModel):
     """Dynamic rules received from SaaS platform."""
 
-    ip_blacklist: list[str] = Field(default_factory=list)
-    ip_whitelist: list[str] = Field(default_factory=list)
-    rate_limits: dict[str, int] = Field(default_factory=dict)
-    country_blocks: list[str] = Field(default_factory=list)
-    custom_patterns: list[str] = Field(default_factory=list)
-    updated_at: datetime
-    ttl: int = Field(default=3600, description="Time to live in seconds")
+    # Rule metadata
+    rule_id: str = Field(description="Unique rule ID")
+    version: int = Field(description="Rule version number")
+    timestamp: datetime = Field(description="Rule creation/update timestamp")
+    expires_at: datetime | None = Field(default=None, description="Rule expiration time")
+    ttl: int = Field(default=300, description="Cache TTL in seconds")
+
+    # IP management rules
+    ip_blacklist: list[str] = Field(default_factory=list, description="IPs to ban")
+    ip_whitelist: list[str] = Field(default_factory=list, description="IPs to allow")
+    ip_ban_duration: int = Field(default=3600, description="Ban duration in seconds")
+
+    # Country/geo rules
+    blocked_countries: list[str] = Field(default_factory=list, description="Countries to block")
+    whitelist_countries: list[str] = Field(default_factory=list, description="Countries to allow")
+
+    # Rate limiting rules
+    global_rate_limit: int | None = Field(default=None, description="Global rate limit")
+    global_rate_window: int | None = Field(default=None, description="Global rate window")
+    endpoint_rate_limits: dict[str, tuple[int, int]] = Field(
+        default_factory=dict,
+        description="Per-endpoint rate limits {endpoint: (requests, window)}"
+    )
+
+    # Cloud provider rules
+    blocked_cloud_providers: set[str] = Field(
+        default_factory=set,
+        description="Cloud providers to block"
+    )
+
+    # User agent rules
+    blocked_user_agents: list[str] = Field(
+        default_factory=list,
+        description="User agents to block"
+    )
+
+    # Pattern rules
+    suspicious_patterns: list[str] = Field(
+        default_factory=list,
+        description="Additional suspicious patterns"
+    )
+
+    # Feature toggles
+    enable_penetration_detection: bool | None = Field(
+        default=None,
+        description="Override penetration detection setting"
+    )
+    enable_ip_banning: bool | None = Field(
+        default=None,
+        description="Override IP banning setting"
+    )
+    enable_rate_limiting: bool | None = Field(
+        default=None,
+        description="Override rate limiting setting"
+    )
+
+    # Emergency controls
+    emergency_mode: bool = Field(default=False, description="Emergency lockdown mode")
+    emergency_whitelist: list[str] = Field(
+        default_factory=list,
+        description="Emergency whitelist IPs"
+    )
 
 
 class AgentStatus(BaseModel):

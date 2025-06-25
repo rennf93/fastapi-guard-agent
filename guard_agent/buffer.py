@@ -208,9 +208,39 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            # This would need to be implemented based on Redis handler capabilities
-            # For now, we'll skip automatic recovery
-            self.logger.info("Redis buffer recovery not yet implemented")
+            # Load events from Redis
+            event_keys = await self.redis_handler.keys("agent_events:*") or []
+            for key in event_keys:
+                try:
+                    event_data = await self.redis_handler.get_key("agent_events", key.split(":")[-1])
+                    if event_data:
+                        event_dict = await safe_json_deserialize(event_data)
+                        if event_dict:
+                            event = SecurityEvent(**event_dict)
+                            self.event_buffer.append(event)
+                            self.events_buffered += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to load event from Redis key {key}: {e}")
+
+            # Load metrics from Redis
+            metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
+            for key in metric_keys:
+                try:
+                    metric_data = await self.redis_handler.get_key("agent_metrics", key.split(":")[-1])
+                    if metric_data:
+                        metric_dict = await safe_json_deserialize(metric_data)
+                        if metric_dict:
+                            metric = SecurityMetric(**metric_dict)
+                            self.metric_buffer.append(metric)
+                            self.metrics_buffered += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to load metric from Redis key {key}: {e}")
+
+            if self.event_buffer or self.metric_buffer:
+                self.logger.info(
+                    f"Loaded {len(self.event_buffer)} events and {len(self.metric_buffer)} metrics from Redis"
+                )
+
         except Exception as e:
             self.logger.warning(f"Failed to load from Redis: {str(e)}")
 
@@ -220,9 +250,18 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            # Implementation would depend on how we store events in Redis
-            # This is a placeholder for the actual implementation
-            pass
+            # Get event keys and delete the oldest ones
+            event_keys = await self.redis_handler.keys("agent_events:*") or []
+            # Sort keys to get oldest first (assuming timestamp-based keys)
+            sorted_keys = sorted(event_keys)
+
+            # Delete the specified number of oldest events
+            for i, key in enumerate(sorted_keys):
+                if i >= count:
+                    break
+                key_name = key.split(":")[-1]
+                await self.redis_handler.delete_key("agent_events", key_name)
+
         except Exception as e:
             self.logger.warning(f"Failed to clear events from Redis: {str(e)}")
 
@@ -232,9 +271,18 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            # Implementation would depend on how we store metrics in Redis
-            # This is a placeholder for the actual implementation
-            pass
+            # Get metric keys and delete the oldest ones
+            metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
+            # Sort keys to get oldest first (assuming timestamp-based keys)
+            sorted_keys = sorted(metric_keys)
+
+            # Delete the specified number of oldest metrics
+            for i, key in enumerate(sorted_keys):
+                if i >= count:
+                    break
+                key_name = key.split(":")[-1]
+                await self.redis_handler.delete_key("agent_metrics", key_name)
+
         except Exception as e:
             self.logger.warning(f"Failed to clear metrics from Redis: {str(e)}")
 
@@ -244,9 +292,20 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            # Clear events and metrics from Redis
-            # This would need proper implementation based on Redis structure
-            pass
+            # Clear all events
+            event_keys = await self.redis_handler.keys("agent_events:*") or []
+            for key in event_keys:
+                key_name = key.split(":")[-1]
+                await self.redis_handler.delete_key("agent_events", key_name)
+
+            # Clear all metrics
+            metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
+            for key in metric_keys:
+                key_name = key.split(":")[-1]
+                await self.redis_handler.delete_key("agent_metrics", key_name)
+
+            self.logger.info("Cleared all Redis buffers")
+
         except Exception as e:
             self.logger.warning(f"Failed to clear Redis buffers: {str(e)}")
 

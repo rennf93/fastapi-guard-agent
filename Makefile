@@ -26,10 +26,6 @@ stop:
 	@docker compose down --rmi all --remove-orphans -v
 	@docker system prune -f
 
-# Restart
-.PHONY: restart
-restart: stop start-example
-
 # Lint code
 .PHONY: lint
 lint:
