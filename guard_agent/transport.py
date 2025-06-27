@@ -201,6 +201,8 @@ class HTTPTransport(TransportProtocol):
                     self.requests_sent += 1
                     self.logger.debug(f"Successfully sent {data_type} batch")
                     return True
+                else:
+                    self.requests_failed += 1
 
             except Exception as e:
                 self.logger.warning(f"Attempt {attempt + 1} failed for {data_type}: {str(e)}")
@@ -238,6 +240,8 @@ class HTTPTransport(TransportProtocol):
                 if response_data:
                     self.requests_sent += 1
                     return response_data
+                else:
+                    self.requests_failed += 1
 
             except Exception as e:
                 self.logger.warning(f"GET attempt {attempt + 1} failed for {endpoint}: {str(e)}")
@@ -245,8 +249,9 @@ class HTTPTransport(TransportProtocol):
                 if attempt < self.config.retry_attempts:
                     delay = calculate_backoff_delay(attempt, self.config.backoff_factor)
                     await asyncio.sleep(delay)
+                else:
+                    self.requests_failed += 1
 
-        self.requests_failed += 1
         return None
 
     async def _make_request(self, method: str, endpoint: str, data: dict[str, Any] | None) -> Any:

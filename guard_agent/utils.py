@@ -61,6 +61,15 @@ async def safe_json_serialize(obj: Any) -> str:
         return json.dumps({"error": "serialization_failed", "type": str(type(obj))})
 
 
+async def safe_json_deserialize(json_str: str) -> dict[str, Any] | None:
+    """Safely deserialize JSON string with error handling."""
+    try:
+        return json.loads(json_str)
+    except (TypeError, ValueError, json.JSONDecodeError) as e:
+        logging.warning(f"Failed to deserialize JSON: {str(e)}")
+        return None
+
+
 def validate_config(config: AgentConfig) -> list[str]:
     """Validate agent configuration and return list of errors."""
     errors = []

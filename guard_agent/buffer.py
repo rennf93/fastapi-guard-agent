@@ -7,7 +7,7 @@ from typing import Any
 
 from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric
 from guard_agent.protocols import BufferProtocol, RedisHandlerProtocol
-from guard_agent.utils import safe_json_serialize# , get_current_timestamp
+from guard_agent.utils import safe_json_serialize, safe_json_deserialize# , get_current_timestamp
 
 
 class EventBuffer(BufferProtocol):
@@ -219,6 +219,8 @@ class EventBuffer(BufferProtocol):
                             event = SecurityEvent(**event_dict)
                             self.event_buffer.append(event)
                             self.events_buffered += 1
+                    else:
+                        self.logger.warning(f"Failed to load event from Redis key {key}: No data found for key")
                 except Exception as e:
                     self.logger.warning(f"Failed to load event from Redis key {key}: {e}")
 
@@ -233,6 +235,8 @@ class EventBuffer(BufferProtocol):
                             metric = SecurityMetric(**metric_dict)
                             self.metric_buffer.append(metric)
                             self.metrics_buffered += 1
+                    else:
+                        self.logger.warning(f"Failed to load metric from Redis key {key}: No data found for key")
                 except Exception as e:
                     self.logger.warning(f"Failed to load metric from Redis key {key}: {e}")
 

@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AgentConfig(BaseModel):
@@ -39,6 +40,22 @@ class AgentConfig(BaseModel):
         description="Maximum payload size to include in events (bytes)"
     )
 
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, v: str) -> str:
+        """Validate that endpoint is a valid URL."""
+        if not v:
+            raise ValueError("Endpoint URL cannot be empty")
+
+        parsed = urlparse(v)
+        if not parsed.scheme or not parsed.netloc:
+            raise ValueError("Endpoint must be a valid URL with scheme and domain")
+
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError("Endpoint URL must use http or https scheme")
+
+        return v
+
 
 class SecurityEvent(BaseModel):
     """Security event model for telemetry."""
@@ -61,7 +78,10 @@ class SecurityEvent(BaseModel):
         "pattern_detected",
         "access_denied",
         "authentication_failed",
-        "content_filtered"
+        "content_filtered",
+        "emergency_mode_activated",
+        "emergency_mode_block",
+        "dynamic_rule_violation"
     ]
     ip_address: str
     country: str | None = None
@@ -101,9 +121,9 @@ class DynamicRules(BaseModel):
     """Dynamic rules received from SaaS platform."""
 
     # Rule metadata
-    rule_id: str = Field(description="Unique rule ID")
-    version: int = Field(description="Rule version number")
-    timestamp: datetime = Field(description="Rule creation/update timestamp")
+    rule_id: str = Field(default="default-rule", description="Unique rule ID")
+    version: int = Field(default=1, description="Rule version number")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Rule creation/update timestamp")
     expires_at: datetime | None = Field(default=None, description="Rule expiration time")
     ttl: int = Field(default=300, description="Cache TTL in seconds")
 
