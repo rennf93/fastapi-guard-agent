@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://rennf93.github.io/fastapi-guard-agent/latest/0.0.1/</loc>
+         <lastmod>2025-06-27</lastmod>
+    </url>
+    <url>
+         <loc>https://rennf93.github.io/fastapi-guard-agent/latest/0.0.1/installation/</loc>
+         <lastmod>2025-06-27</lastmod>
+    </url>
+    <url>
+         <loc>https://rennf93.github.io/fastapi-guard-agent/latest/0.0.1/release-notes/</loc>
+         <lastmod>2025-06-27</lastmod>
+    </url>
+    <url>
+         <loc>https://rennf93.github.io/fastapi-guard-agent/latest/0.0.1/api/overview/</loc>
+         <lastmod>2025-06-27</lastmod>
+    </url>
+    <url>
+         <loc>https://rennf93.github.io/fastapi-guard-agent/latest/0.0.1/tutorial/getting-started/</loc>
+         <lastmod>2025-06-27</lastmod>
+    </url>
+</urlset>
