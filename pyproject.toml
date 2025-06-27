@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
     "aiohttp",
     "fastapi",
+    "fastapi-guard",
     "pydantic",
     "typing-extensions",
 ]
@@ -47,6 +48,8 @@ dev = [
     "pytest-cov",
     "pytest-mock",
     "ruff",
+    "types-psutil",
+    "types-setuptools",
 ]
 redis = [
     "redis",
