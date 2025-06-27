@@ -1,27 +1,27 @@
-import pytest
-import time
 import asyncio
 import json
 import logging
 from datetime import datetime, timezone
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
-from guard_agent.utils import (
-    generate_batch_id,
-    sanitize_headers,
-    truncate_payload,
-    hash_ip,
-    get_current_timestamp,
-    calculate_backoff_delay,
-    safe_json_serialize,
-    safe_json_deserialize,
-    validate_config,
-    setup_agent_logging,
-    RateLimiter,
-    CircuitBreaker,
-)
-from guard_agent.models import AgentConfig
+import pytest
 from pydantic import ValidationError
+
+from guard_agent.models import AgentConfig
+from guard_agent.utils import (
+    CircuitBreaker,
+    RateLimiter,
+    calculate_backoff_delay,
+    generate_batch_id,
+    get_current_timestamp,
+    hash_ip,
+    safe_json_deserialize,
+    safe_json_serialize,
+    sanitize_headers,
+    setup_agent_logging,
+    truncate_payload,
+    validate_config,
+)
 
 
 class TestUtils:
@@ -29,16 +29,16 @@ class TestUtils:
         batch_id = generate_batch_id()
         assert isinstance(batch_id, str)
         assert len(batch_id) > 0
-        parts = batch_id.split('-')
+        parts = batch_id.split("-")
         assert len(parts) == 2
-        assert parts[0].isdigit() # timestamp part
+        assert parts[0].isdigit()  # timestamp part
 
     def test_sanitize_headers(self):
         headers = {
             "Authorization": "Bearer token",
             "Content-Type": "application/json",
             "X-Api-Key": "secret",
-            "Custom-Header": "value"
+            "Custom-Header": "value",
         }
         sensitive_headers = ["authorization", "x-api-key"]
         sanitized = sanitize_headers(headers, sensitive_headers)
@@ -67,7 +67,7 @@ class TestUtils:
         ip = "192.168.1.1"
         hashed_ip = hash_ip(ip)
         assert isinstance(hashed_ip, str)
-        assert len(hashed_ip) == 16 # Truncated to 16 characters
+        assert len(hashed_ip) == 16  # Truncated to 16 characters
         assert hashed_ip != ip
 
         hashed_ip_with_salt = hash_ip(ip, salt="test_salt")
@@ -85,8 +85,10 @@ class TestUtils:
         assert calculate_backoff_delay(0) == 1.0
         assert calculate_backoff_delay(1) == 2.0
         assert calculate_backoff_delay(2) == 4.0
-        assert calculate_backoff_delay(3, base_delay=0.5) == 4.0 # 0.5 * (2**3) = 4.0
-        assert calculate_backoff_delay(10, max_delay=10.0) == 10.0 # Should cap at max_delay
+        assert calculate_backoff_delay(3, base_delay=0.5) == 4.0  # 0.5 * (2**3) = 4.0
+        assert (
+            calculate_backoff_delay(10, max_delay=10.0) == 10.0
+        )  # Should cap at max_delay
 
     @pytest.mark.asyncio
     async def test_safe_json_serialize_success(self):
@@ -99,6 +101,7 @@ class TestUtils:
         class Unserializable:
             def __str__(self):
                 raise TypeError("Cannot serialize this object")
+
         data = {"obj": Unserializable()}
         serialized = await safe_json_serialize(data)
         assert "serialization_failed" in serialized
@@ -112,7 +115,7 @@ class TestUtils:
 
     @pytest.mark.asyncio
     async def test_safe_json_deserialize_invalid_json(self):
-        invalid_json_str = '{"key": "value", "number": 123' # Missing closing brace
+        invalid_json_str = '{"key": "value", "number": 123'  # Missing closing brace
         deserialized = await safe_json_deserialize(invalid_json_str)
         assert deserialized is None
 
@@ -124,24 +127,106 @@ class TestUtils:
             flush_interval=1,
             timeout=1,
             retry_attempts=0,
-            backoff_factor=0.1
+            backoff_factor=0.1,
         )
         errors = validate_config(config)
         assert len(errors) == 0
 
     @pytest.mark.parametrize(
-        "api_key, endpoint, buffer_size, flush_interval, timeout, retry_attempts, backoff_factor, expected_errors",
+        """
+        api_key,
+        endpoint,
+        buffer_size,
+        flush_interval,
+        timeout,
+        retry_attempts,
+        backoff_factor,
+        expected_errors
+        """,
         [
-            ("", "https://example.com", 1, 1, 1, 0, 0.1, ["api_key must be at least 10 characters long"]),
-            ("short", "https://example.com", 1, 1, 1, 0, 0.1, ["api_key must be at least 10 characters long"]),
-            ("a" * 10, "https://example.com", 0, 1, 1, 0, 0.1, ["buffer_size must be greater than 0"]),
-            ("a" * 10, "https://example.com", 1, 0, 1, 0, 0.1, ["flush_interval must be greater than 0"]),
-            ("a" * 10, "https://example.com", 1, 1, 0, 0, 0.1, ["timeout must be greater than 0"]),
-            ("a" * 10, "https://example.com", 1, 1, 1, -1, 0.1, ["retry_attempts cannot be negative"]),
-            ("a" * 10, "https://example.com", 1, 1, 1, 0, 0, ["backoff_factor must be greater than 0"]),
-        ]
+            (
+                "",
+                "https://example.com",
+                1,
+                1,
+                1,
+                0,
+                0.1,
+                ["api_key must be at least 10 characters long"],
+            ),
+            (
+                "short",
+                "https://example.com",
+                1,
+                1,
+                1,
+                0,
+                0.1,
+                ["api_key must be at least 10 characters long"],
+            ),
+            (
+                "a" * 10,
+                "https://example.com",
+                0,
+                1,
+                1,
+                0,
+                0.1,
+                ["buffer_size must be greater than 0"],
+            ),
+            (
+                "a" * 10,
+                "https://example.com",
+                1,
+                0,
+                1,
+                0,
+                0.1,
+                ["flush_interval must be greater than 0"],
+            ),
+            (
+                "a" * 10,
+                "https://example.com",
+                1,
+                1,
+                0,
+                0,
+                0.1,
+                ["timeout must be greater than 0"],
+            ),
+            (
+                "a" * 10,
+                "https://example.com",
+                1,
+                1,
+                1,
+                -1,
+                0.1,
+                ["retry_attempts cannot be negative"],
+            ),
+            (
+                "a" * 10,
+                "https://example.com",
+                1,
+                1,
+                1,
+                0,
+                0,
+                ["backoff_factor must be greater than 0"],
+            ),
+        ],
     )
-    def test_validate_config_failures(self, api_key, endpoint, buffer_size, flush_interval, timeout, retry_attempts, backoff_factor, expected_errors):
+    def test_validate_config_failures(
+        self,
+        api_key,
+        endpoint,
+        buffer_size,
+        flush_interval,
+        timeout,
+        retry_attempts,
+        backoff_factor,
+        expected_errors,
+    ):
         config = AgentConfig(
             api_key=api_key,
             endpoint=endpoint,
@@ -149,7 +234,7 @@ class TestUtils:
             flush_interval=flush_interval,
             timeout=timeout,
             retry_attempts=retry_attempts,
-            backoff_factor=backoff_factor
+            backoff_factor=backoff_factor,
         )
         errors = validate_config(config)
         assert sorted(errors) == sorted(expected_errors)
@@ -159,7 +244,7 @@ class TestUtils:
         [
             ("invalid-url", "Endpoint must be a valid URL with scheme and domain"),
             ("ftp://example.com", "Endpoint URL must use http or https scheme"),
-        ]
+        ],
     )
     def test_validate_config_endpoint_failures(self, endpoint, expected_error_msg):
         with pytest.raises(ValidationError) as excinfo:
@@ -170,7 +255,7 @@ class TestUtils:
                 flush_interval=1,
                 timeout=1,
                 retry_attempts=0,
-                backoff_factor=0.1
+                backoff_factor=0.1,
             )
         assert expected_error_msg in str(excinfo.value)
 
@@ -179,7 +264,7 @@ class TestUtils:
         class MockAgentConfig:
             def __init__(self):
                 self.api_key = "a" * 10
-                self.endpoint = "ws://example.com" # Invalid scheme for the check
+                self.endpoint = "ws://example.com"  # Invalid scheme for the check
                 self.buffer_size = 1
                 self.flush_interval = 1
                 self.timeout = 1
@@ -205,12 +290,15 @@ class TestUtils:
         # Test calling again, should not add new handlers
         logger_again = await setup_agent_logging(log_level="INFO")
         assert len(logger_again.handlers) == 1
-        assert logger_again.level == logging.DEBUG # Level should remain at the first set level
+        assert (
+            logger_again.level == logging.DEBUG
+        )  # Level should remain at the first set level
+
 
 class TestRateLimiter:
     def test_acquire_within_limit(self):
         limiter = RateLimiter(max_calls=3, time_window=10)
-        with patch('time.time', side_effect=[0, 1, 2]):
+        with patch("time.time", side_effect=[0, 1, 2]):
             assert asyncio.run(limiter.acquire()) is True
             assert asyncio.run(limiter.acquire()) is True
             assert asyncio.run(limiter.acquire()) is True
@@ -218,20 +306,21 @@ class TestRateLimiter:
 
     def test_acquire_exceed_limit(self):
         limiter = RateLimiter(max_calls=1, time_window=10)
-        with patch('time.time', side_effect=[0, 1]):
+        with patch("time.time", side_effect=[0, 1]):
             assert asyncio.run(limiter.acquire()) is True
-            assert asyncio.run(limiter.acquire()) is False # Exceeds limit
+            assert asyncio.run(limiter.acquire()) is False  # Exceeds limit
 
     @pytest.mark.asyncio
     async def test_acquire_old_calls_removed(self):
         limiter = RateLimiter(max_calls=2, time_window=10)
         current_time = 0
+
         def mock_time():
             nonlocal current_time
             current_time += 1
             return current_time
 
-        with patch('time.time', side_effect=mock_time):
+        with patch("time.time", side_effect=mock_time):
             # Call 1: time=1, calls=[1]
             assert await limiter.acquire() is True
             assert limiter.calls == [1]
@@ -247,7 +336,7 @@ class TestRateLimiter:
             # Advance time to 11 (next time.time() will be 12)
             current_time = 11
 
-            # Call 4: time=12. Calls at 1 and 2 are now outside window (12-1=11, 12-2=10).
+            # Call 4: time=12. 1 and 2 are now outside window (12-1=11, 12-2=10).
             # Both should be removed. calls=[]. Then 12 is added. calls=[12].
             assert await limiter.acquire() is True
             assert limiter.calls == [12]
@@ -268,33 +357,36 @@ class TestRateLimiter:
         assert limiter.get_retry_after() == 0.0
 
         # Test case 2: One call, still within window
-        limiter.calls = [0] # Simulate a call at time 0
-        with patch('time.time', return_value=1): # Current time is 1
-            assert limiter.get_retry_after() == 9.0 # 10 - (1 - 0) = 9
+        limiter.calls = [0]  # Simulate a call at time 0
+        with patch("time.time", return_value=1):  # Current time is 1
+            assert limiter.get_retry_after() == 9.0  # 10 - (1 - 0) = 9
 
         # Test case 3: One call, exactly at window edge
         limiter.calls = [0]
-        with patch('time.time', return_value=10): # Current time is 10
-            assert limiter.get_retry_after() == 0.0 # 10 - (10 - 0) = 0
+        with patch("time.time", return_value=10):  # Current time is 10
+            assert limiter.get_retry_after() == 0.0  # 10 - (10 - 0) = 0
 
         # Test case 4: One call, outside window
         limiter.calls = [0]
-        with patch('time.time', return_value=11): # Current time is 11
-            assert limiter.get_retry_after() == 0.0 # 10 - (11 - 0) = -1, capped at 0
+        with patch("time.time", return_value=11):  # Current time is 11
+            assert limiter.get_retry_after() == 0.0  # 10 - (11 - 0) = -1, capped at 0
 
         # Test case 5: Multiple calls, oldest is within window
-        limiter.calls = [0, 5] # Calls at 0 and 5
-        with patch('time.time', return_value=8): # Current time is 8
-            assert limiter.get_retry_after() == 2.0 # Oldest is 0. 10 - (8 - 0) = 2
+        limiter.calls = [0, 5]  # Calls at 0 and 5
+        with patch("time.time", return_value=8):  # Current time is 8
+            assert limiter.get_retry_after() == 2.0  # Oldest is 0. 10 - (8 - 0) = 2
 
         # Test case 6: Multiple calls, oldest is outside window
         limiter.calls = [0, 5]
-        with patch('time.time', return_value=11): # Current time is 11
-            assert limiter.get_retry_after() == 0.0 # Oldest is 0. 10 - (11 - 0) = -1, capped at 0
+        with patch("time.time", return_value=11):  # Current time is 11
+            assert (
+                limiter.get_retry_after() == 0.0
+            )  # Oldest is 0. 10 - (11 - 0) = -1, capped at 0
 
     def test_get_retry_after_no_calls(self):
         limiter = RateLimiter(max_calls=1, time_window=10)
         assert limiter.get_retry_after() == 0.0
+
 
 class TestCircuitBreaker:
     @pytest.mark.asyncio
@@ -319,7 +411,7 @@ class TestCircuitBreaker:
 
         with pytest.raises(Exception, match="test error"):
             await breaker.call(mock_func)
-        assert breaker.state == "OPEN" # Threshold reached
+        assert breaker.state == "OPEN"  # Threshold reached
         assert breaker.failure_count == 2
 
     @pytest.mark.asyncio
@@ -327,12 +419,12 @@ class TestCircuitBreaker:
         breaker = CircuitBreaker(failure_threshold=1, recovery_timeout=10)
         mock_func = AsyncMock(side_effect=Exception("test error"))
 
-        with pytest.raises(Exception):
-            await breaker.call(mock_func) # First failure, state becomes OPEN
+        with pytest.raises(Exception, match="test error"):
+            await breaker.call(mock_func)  # First failure, state becomes OPEN
 
         assert breaker.state == "OPEN"
         with pytest.raises(Exception, match="Circuit breaker is OPEN"):
-            await breaker.call(mock_func) # Should raise immediately
+            await breaker.call(mock_func)  # Should raise immediately
 
     @pytest.mark.asyncio
     async def test_half_open_state_success(self):
@@ -340,19 +432,20 @@ class TestCircuitBreaker:
         mock_func = AsyncMock(return_value="success")
 
         current_time = 0
+
         def mock_time():
             nonlocal current_time
             current_time += 1
             return current_time
 
-        with patch('time.time', side_effect=mock_time):
+        with patch("time.time", side_effect=mock_time):
             # First failure to open the circuit
-            with pytest.raises(Exception):
+            with pytest.raises(Exception, match="initial failure"):
                 await breaker.call(AsyncMock(side_effect=Exception("initial failure")))
             assert breaker.state == "OPEN"
 
             # Advance time past recovery_timeout
-            current_time += breaker.recovery_timeout + 1 # Ensure time is past recovery
+            current_time += breaker.recovery_timeout + 1  # Ensure time is past recovery
 
             # Call in HALF_OPEN state, should succeed and close circuit
             result = await breaker.call(mock_func)
@@ -366,14 +459,15 @@ class TestCircuitBreaker:
         mock_func = AsyncMock(side_effect=Exception("test error"))
 
         current_time = 0
+
         def mock_time():
             nonlocal current_time
             current_time += 1
             return current_time
 
-        with patch('time.time', side_effect=mock_time):
+        with patch("time.time", side_effect=mock_time):
             # First failure to open the circuit
-            with pytest.raises(Exception):
+            with pytest.raises(Exception, match="initial failure"):
                 await breaker.call(AsyncMock(side_effect=Exception("initial failure")))
             assert breaker.state == "OPEN"
 
@@ -383,5 +477,5 @@ class TestCircuitBreaker:
             # Call in HALF_OPEN state, should fail and re-open circuit
             with pytest.raises(Exception, match="test error"):
                 await breaker.call(mock_func)
-            assert breaker.state == "OPEN" # Failure in HALF_OPEN re-opens breaker
-            assert breaker.failure_count == 2 # Incremented failure count
+            assert breaker.state == "OPEN"  # Failure in HALF_OPEN re-opens breaker
+            assert breaker.failure_count == 2  # Incremented failure count

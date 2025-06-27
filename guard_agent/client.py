@@ -4,10 +4,19 @@ import time
 from typing import Any
 
 from guard_agent.buffer import EventBuffer
-from guard_agent.models import AgentConfig, AgentStatus, DynamicRules, SecurityEvent, SecurityMetric
+from guard_agent.models import (
+    AgentConfig,
+    AgentStatus,
+    DynamicRules,
+    SecurityEvent,
+    SecurityMetric,
+)
 from guard_agent.protocols import AgentHandlerProtocol, RedisHandlerProtocol
 from guard_agent.transport import HTTPTransport
-from guard_agent.utils import get_current_timestamp, validate_config# , setup_agent_logging
+from guard_agent.utils import (
+    get_current_timestamp,
+    validate_config,
+)  # , setup_agent_logging
 
 
 class GuardAgentHandler(AgentHandlerProtocol):
@@ -26,7 +35,7 @@ class GuardAgentHandler(AgentHandlerProtocol):
 
     def __init__(self, config: AgentConfig):
         # Prevent re-initialization of singleton
-        if hasattr(self, '_initialized') and self._initialized:
+        if hasattr(self, "_initialized") and self._initialized:
             # Update config if needed
             self.config = config
             return
@@ -138,7 +147,9 @@ class GuardAgentHandler(AgentHandlerProtocol):
 
         try:
             await self.buffer.add_event(event)
-            self.logger.debug(f"Event buffered: {event.event_type} from {event.ip_address}")
+            self.logger.debug(
+                f"Event buffered: {event.event_type} from {event.ip_address}"
+            )
         except Exception as e:
             self.logger.error(f"Failed to buffer event: {str(e)}")
 
@@ -158,8 +169,10 @@ class GuardAgentHandler(AgentHandlerProtocol):
         current_time = time.time()
 
         # Check if cached rules are still valid
-        if (self._cached_rules and
-            current_time - self._rules_last_update < self._cached_rules.ttl):
+        if (
+            self._cached_rules
+            and current_time - self._rules_last_update < self._cached_rules.ttl
+        ):
             return self._cached_rules
 
         # Fetch fresh rules
@@ -226,7 +239,13 @@ class GuardAgentHandler(AgentHandlerProtocol):
             errors.append("Buffer nearly full")
 
         if self.events_failed + self.metrics_failed > 0:
-            failure_rate = (self.events_failed + self.metrics_failed) / max(1, self.events_sent + self.metrics_sent + self.events_failed + self.metrics_failed)
+            failure_rate = (self.events_failed + self.metrics_failed) / max(
+                1,
+                self.events_sent
+                + self.metrics_sent
+                + self.events_failed
+                + self.metrics_failed,
+            )
             if failure_rate > 0.1:  # 10% failure rate
                 status = "degraded"
                 errors.append(f"High failure rate: {failure_rate:.1%}")

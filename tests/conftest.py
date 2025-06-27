@@ -1,6 +1,7 @@
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from guard_agent.buffer import EventBuffer
 from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric

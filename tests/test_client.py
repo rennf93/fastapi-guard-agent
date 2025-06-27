@@ -1,10 +1,17 @@
 import asyncio
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from guard_agent.client import GuardAgentHandler, guard_agent
-from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric, AgentStatus, DynamicRules
+from guard_agent.models import (
+    AgentConfig,
+    AgentStatus,
+    DynamicRules,
+    SecurityEvent,
+    SecurityMetric,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -44,7 +51,9 @@ class TestGuardAgentHandler:
         assert isinstance(handler1, GuardAgentHandler)
 
     @pytest.mark.asyncio
-    async def test_initialize_redis(self, agent_config: AgentConfig, mock_redis_handler: AsyncMock) -> None:
+    async def test_initialize_redis(
+        self, agent_config: AgentConfig, mock_redis_handler: AsyncMock
+    ) -> None:
         """Test Redis initialization."""
         handler = GuardAgentHandler(agent_config)
 
@@ -62,7 +71,7 @@ class TestGuardAgentHandler:
             event_type="ip_banned",
             ip_address="192.168.1.1",
             action_taken="banned",
-            reason="test"
+            reason="test",
         )
         await handler.send_event(event)
         handler.buffer.add_event.assert_called_once_with(event)
@@ -73,7 +82,13 @@ class TestGuardAgentHandler:
         config = agent_config.model_copy(update={"enable_events": False})
         handler = GuardAgentHandler(config)
         handler.buffer = AsyncMock()
-        event = SecurityEvent(timestamp=datetime.now(timezone.utc), event_type="ip_banned", ip_address="1.1.1.1", action_taken="block", reason="test")
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="1.1.1.1",
+            action_taken="block",
+            reason="test",
+        )
 
         await handler.send_event(event)
         handler.buffer.add_event.assert_not_called()
@@ -84,7 +99,13 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
         handler.buffer.add_event.side_effect = Exception("Buffer is full")
-        event = SecurityEvent(timestamp=datetime.now(timezone.utc), event_type="ip_banned", ip_address="1.1.1.1", action_taken="block", reason="test")
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="1.1.1.1",
+            action_taken="block",
+            reason="test",
+        )
 
         await handler.send_event(event)
         assert "Failed to buffer event: Buffer is full" in caplog.text
@@ -97,7 +118,7 @@ class TestGuardAgentHandler:
         metric = SecurityMetric(
             timestamp=datetime.now(timezone.utc),
             metric_type="request_count",
-            value=42.0
+            value=42.0,
         )
         await handler.send_metric(metric)
         handler.buffer.add_metric.assert_called_once_with(metric)
@@ -108,7 +129,9 @@ class TestGuardAgentHandler:
         config = agent_config.model_copy(update={"enable_metrics": False})
         handler = GuardAgentHandler(config)
         handler.buffer = AsyncMock()
-        metric = SecurityMetric(timestamp=datetime.now(timezone.utc), metric_type="request_count", value=1)
+        metric = SecurityMetric(
+            timestamp=datetime.now(timezone.utc), metric_type="request_count", value=1
+        )
 
         await handler.send_metric(metric)
         handler.buffer.add_metric.assert_not_called()
@@ -119,7 +142,9 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
         handler.buffer.add_metric.side_effect = Exception("Buffer is full")
-        metric = SecurityMetric(timestamp=datetime.now(timezone.utc), metric_type="request_count", value=1)
+        metric = SecurityMetric(
+            timestamp=datetime.now(timezone.utc), metric_type="request_count", value=1
+        )
 
         await handler.send_metric(metric)
         assert "Failed to buffer metric: Buffer is full" in caplog.text
@@ -132,7 +157,9 @@ class TestGuardAgentHandler:
         handler.buffer.get_buffer_size.return_value = 5
         handler.buffer.get_stats = MagicMock(return_value={"last_flush_time": None})
         handler.transport = AsyncMock()
-        handler.transport.get_stats = MagicMock(return_value={"circuit_breaker_state": "CLOSED"})
+        handler.transport.get_stats = MagicMock(
+            return_value={"circuit_breaker_state": "CLOSED"}
+        )
 
         status = await handler.get_status()
 
@@ -178,8 +205,22 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
         handler.transport = AsyncMock()
-        test_events = [SecurityEvent(timestamp=datetime.now(timezone.utc), event_type="ip_banned", ip_address="192.168.1.1", action_taken="banned", reason="test")]
-        test_metrics = [SecurityMetric(timestamp=datetime.now(timezone.utc), metric_type="request_count", value=1.0)]
+        test_events = [
+            SecurityEvent(
+                timestamp=datetime.now(timezone.utc),
+                event_type="ip_banned",
+                ip_address="192.168.1.1",
+                action_taken="banned",
+                reason="test",
+            )
+        ]
+        test_metrics = [
+            SecurityMetric(
+                timestamp=datetime.now(timezone.utc),
+                metric_type="request_count",
+                value=1.0,
+            )
+        ]
         handler.buffer.flush_events.return_value = test_events
         handler.buffer.flush_metrics.return_value = test_metrics
         handler.transport.send_events.return_value = True
@@ -279,7 +320,9 @@ class TestGuardAgentHandler:
         assert handler.rules_fetched == 1
 
     @pytest.mark.asyncio
-    async def test_get_dynamic_rules_fetch_error(self, agent_config: AgentConfig, caplog):
+    async def test_get_dynamic_rules_fetch_error(
+        self, agent_config: AgentConfig, caplog
+    ):
         """Test handling of fetch error for dynamic rules."""
         handler = GuardAgentHandler(agent_config)
         cached_rules = DynamicRules(ttl=300)
@@ -334,7 +377,9 @@ class TestGuardAgentHandler:
         handler.buffer.get_buffer_size.return_value = 1
         handler.buffer.get_stats = MagicMock(return_value={"last_flush_time": None})
         handler.transport = AsyncMock()
-        handler.transport.get_stats = MagicMock(return_value={"circuit_breaker_state": "OPEN"})
+        handler.transport.get_stats = MagicMock(
+            return_value={"circuit_breaker_state": "OPEN"}
+        )
 
         agent_status = await handler.get_status()
         assert agent_status.status == "degraded"
@@ -345,10 +390,14 @@ class TestGuardAgentHandler:
         """Test degraded status when buffer is nearly full."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
-        handler.buffer.get_buffer_size.return_value = int(agent_config.buffer_size * 0.95)
+        handler.buffer.get_buffer_size.return_value = int(
+            agent_config.buffer_size * 0.95
+        )
         handler.buffer.get_stats = MagicMock(return_value={"last_flush_time": None})
         handler.transport = AsyncMock()
-        handler.transport.get_stats = MagicMock(return_value={"circuit_breaker_state": "CLOSED"})
+        handler.transport.get_stats = MagicMock(
+            return_value={"circuit_breaker_state": "CLOSED"}
+        )
 
         agent_status = await handler.get_status()
         assert agent_status.status == "degraded"
@@ -362,7 +411,9 @@ class TestGuardAgentHandler:
         handler.buffer.get_buffer_size.return_value = 1
         handler.buffer.get_stats = MagicMock(return_value={"last_flush_time": None})
         handler.transport = AsyncMock()
-        handler.transport.get_stats = MagicMock(return_value={"circuit_breaker_state": "CLOSED"})
+        handler.transport.get_stats = MagicMock(
+            return_value={"circuit_breaker_state": "CLOSED"}
+        )
         handler.events_failed = 2
         handler.metrics_failed = 1
         handler.events_sent = 5
@@ -442,7 +493,9 @@ class TestGuardAgentHandler:
         handler.get_status = AsyncMock(side_effect=stop_loop_after_2_calls)
 
         # Mock sleep to return immediately and allow the loop to run
-        with patch('guard_agent.client.asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             mock_sleep.return_value = None
             await handler._status_loop()
 
@@ -463,7 +516,9 @@ class TestGuardAgentHandler:
         handler.get_dynamic_rules = AsyncMock(side_effect=stop_loop_after_2_calls)
 
         # Mock sleep to return immediately and allow the loop to run
-        with patch('guard_agent.client.asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             mock_sleep.return_value = None
             await handler._rules_loop()
 
@@ -498,7 +553,9 @@ class TestGuardAgentHandler:
         handler.get_status = AsyncMock(side_effect=raise_exception_then_stop)
 
         # Mock sleep to return immediately and allow the loop to run
-        with patch('guard_agent.client.asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             mock_sleep.return_value = None
             await handler._status_loop()
 
@@ -519,7 +576,9 @@ class TestGuardAgentHandler:
         handler.get_dynamic_rules = AsyncMock(side_effect=raise_exception_then_stop)
 
         # Mock sleep to return immediately and allow the loop to run
-        with patch('guard_agent.client.asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             mock_sleep.return_value = None
             await handler._rules_loop()
 
@@ -532,7 +591,7 @@ class TestGuardAgentHandler:
         with pytest.raises(ValueError, match="Invalid agent configuration"):
             invalid_config = AgentConfig(
                 api_key="short",  # Too short, needs at least 10 characters
-                endpoint="https://api.example.com"
+                endpoint="https://api.example.com",
             )
             GuardAgentHandler(invalid_config)
 
@@ -558,7 +617,7 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(agent_config)
         handler._running = True
         handler.get_status = AsyncMock()  # Mock to avoid actual status generation
-        handler.transport = AsyncMock()   # Mock transport
+        handler.transport = AsyncMock()  # Mock transport
 
         # Start the status loop task
         status_task = asyncio.create_task(handler._status_loop())

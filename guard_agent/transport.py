@@ -4,7 +4,14 @@ from typing import Any
 
 import aiohttp
 
-from guard_agent.models import AgentConfig, AgentStatus, DynamicRules, EventBatch, SecurityEvent, SecurityMetric
+from guard_agent.models import (
+    AgentConfig,
+    AgentStatus,
+    DynamicRules,
+    EventBatch,
+    SecurityEvent,
+    SecurityMetric,
+)
 from guard_agent.protocols import TransportProtocol
 from guard_agent.utils import (
     CircuitBreaker,
@@ -32,12 +39,11 @@ class HTTPTransport(TransportProtocol):
 
         # Reliability features
         self.circuit_breaker = CircuitBreaker(
-            failure_threshold=5,
-            recovery_timeout=60.0
+            failure_threshold=5, recovery_timeout=60.0
         )
         self.rate_limiter = RateLimiter(
             max_calls=100,  # 100 calls per minute
-            time_window=60.0
+            time_window=60.0,
         )
 
         # Statistics
@@ -115,9 +121,7 @@ class HTTPTransport(TransportProtocol):
 
             # Send with reliability features
             return await self._send_with_retry(
-                "/api/v1/events",
-                batch.model_dump(),
-                "events"
+                "/api/v1/events", batch.model_dump(), "events"
             )
 
         except Exception as e:
@@ -141,9 +145,7 @@ class HTTPTransport(TransportProtocol):
 
             # Send with reliability features
             return await self._send_with_retry(
-                "/api/v1/metrics",
-                batch.model_dump(),
-                "metrics"
+                "/api/v1/metrics", batch.model_dump(), "metrics"
             )
 
         except Exception as e:
@@ -169,32 +171,31 @@ class HTTPTransport(TransportProtocol):
         """Send agent status/health information."""
         try:
             return await self._send_with_retry(
-                "/api/v1/status",
-                status.model_dump(),
-                "status"
+                "/api/v1/status", status.model_dump(), "status"
             )
 
         except Exception as e:
             self.logger.error(f"Failed to send status: {str(e)}")
             return False
 
-    async def _send_with_retry(self, endpoint: str, data: dict[str, Any], data_type: str) -> bool:
+    async def _send_with_retry(
+        self, endpoint: str, data: dict[str, Any], data_type: str
+    ) -> bool:
         """Send data with retry logic and circuit breaker."""
         for attempt in range(self.config.retry_attempts + 1):
             try:
                 # Check rate limit
                 if not await self.rate_limiter.acquire():
                     retry_after = self.rate_limiter.get_retry_after()
-                    self.logger.warning(f"Rate limit exceeded, waiting {retry_after:.1f}s")
+                    self.logger.warning(
+                        f"Rate limit exceeded, waiting {retry_after:.1f}s"
+                    )
                     await asyncio.sleep(retry_after)
                     continue
 
                 # Send via circuit breaker
                 success = await self.circuit_breaker.call(
-                    self._make_request,
-                    "POST",
-                    endpoint,
-                    data
+                    self._make_request, "POST", endpoint, data
                 )
 
                 if success:
@@ -205,13 +206,12 @@ class HTTPTransport(TransportProtocol):
                     self.requests_failed += 1
 
             except Exception as e:
-                self.logger.warning(f"Attempt {attempt + 1} failed for {data_type}: {str(e)}")
+                self.logger.warning(
+                    f"Attempt {attempt + 1} failed for {data_type}: {str(e)}"
+                )
 
                 if attempt < self.config.retry_attempts:
-                    delay = calculate_backoff_delay(
-                        attempt,
-                        self.config.backoff_factor
-                    )
+                    delay = calculate_backoff_delay(attempt, self.config.backoff_factor)
                     await asyncio.sleep(delay)
                 else:
                     self.logger.error(f"All retry attempts failed for {data_type}")
@@ -231,10 +231,7 @@ class HTTPTransport(TransportProtocol):
 
                 # Request via circuit breaker
                 response_data = await self.circuit_breaker.call(
-                    self._make_request,
-                    "GET",
-                    endpoint,
-                    None
+                    self._make_request, "GET", endpoint, None
                 )
 
                 if response_data:
@@ -244,7 +241,9 @@ class HTTPTransport(TransportProtocol):
                     self.requests_failed += 1
 
             except Exception as e:
-                self.logger.warning(f"GET attempt {attempt + 1} failed for {endpoint}: {str(e)}")
+                self.logger.warning(
+                    f"GET attempt {attempt + 1} failed for {endpoint}: {str(e)}"
+                )
 
                 if attempt < self.config.retry_attempts:
                     delay = calculate_backoff_delay(attempt, self.config.backoff_factor)
@@ -254,7 +253,9 @@ class HTTPTransport(TransportProtocol):
 
         return None
 
-    async def _make_request(self, method: str, endpoint: str, data: dict[str, Any] | None) -> Any:
+    async def _make_request(
+        self, method: str, endpoint: str, data: dict[str, Any] | None
+    ) -> Any:
         """Make HTTP request with proper error handling."""
         if not self._session:
             await self.initialize()
@@ -268,7 +269,7 @@ class HTTPTransport(TransportProtocol):
             if method == "POST" and data:
                 # Serialize data
                 json_data = await safe_json_serialize(data)
-                self.bytes_sent += len(json_data.encode('utf-8'))
+                self.bytes_sent += len(json_data.encode("utf-8"))
 
                 async with self._session.post(url, data=json_data) as response:
                     return await self._handle_response(response)
@@ -307,7 +308,7 @@ class HTTPTransport(TransportProtocol):
 
         elif response.status == 429:
             # Rate limited by server
-            retry_after = response.headers.get('Retry-After', '60')
+            retry_after = response.headers.get("Retry-After", "60")
             raise Exception(f"Rate limited by server, retry after {retry_after}s")
 
         elif response.status in [401, 403]:

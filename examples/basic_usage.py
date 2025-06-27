@@ -14,22 +14,24 @@ from fastapi import FastAPI
 
 from guard_agent import (
     AgentConfig,
-    guard_agent,
-    get_current_timestamp,
     SecurityEvent,
     SecurityMetric,
+    get_current_timestamp,
+    guard_agent,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan for FastAPI application."""
-    agent = await get_agent(AgentConfig(
-        api_key="demo-api-key-12345",
-        project_id="fastapi-demo",
-        buffer_size=50,
-        flush_interval=30,
-    ))
+    agent = await get_agent(
+        AgentConfig(
+            api_key="demo-api-key-12345",
+            project_id="fastapi-demo",
+            buffer_size=50,
+            flush_interval=30,
+        )
+    )
     try:
         yield
     finally:
@@ -199,7 +201,7 @@ async def redis_integration_example():
         project_id="redis-demo",
     )
 
-    agent = guard_agent(config)
+    guard_agent(config)
 
     # In a real application, you would pass your actual Redis handler
     # from fastapi-guard that implements RedisHandlerProtocol
@@ -217,7 +219,7 @@ async def main():
     await basic_agent_usage()
 
     # FastAPI integration example (just show the setup)
-    app = create_fastapi_app_with_agent()
+    create_fastapi_app_with_agent()
 
     # Redis integration example
     await redis_integration_example()

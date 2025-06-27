@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import json
 import logging
@@ -17,7 +16,9 @@ def generate_batch_id() -> str:
     return f"{timestamp}-{random_part}"
 
 
-def sanitize_headers(headers: dict[str, str], sensitive_headers: list[str]) -> dict[str, str]:
+def sanitize_headers(
+    headers: dict[str, str], sensitive_headers: list[str]
+) -> dict[str, str]:
     """Remove sensitive headers from telemetry data."""
     sanitized = {}
     for key, value in headers.items():
@@ -46,16 +47,18 @@ def get_current_timestamp() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def calculate_backoff_delay(attempt: int, base_delay: float = 1.0, max_delay: float = 60.0) -> float:
+def calculate_backoff_delay(
+    attempt: int, base_delay: float = 1.0, max_delay: float = 60.0
+) -> float:
     """Calculate exponential backoff delay."""
-    delay = base_delay * (2 ** attempt)
+    delay = base_delay * (2**attempt)
     return min(delay, max_delay)
 
 
 async def safe_json_serialize(obj: Any) -> str:
     """Safely serialize object to JSON with error handling."""
     try:
-        return json.dumps(obj, default=str, separators=(',', ':'))
+        return json.dumps(obj, default=str, separators=(",", ":"))
     except (TypeError, ValueError) as e:
         logging.warning(f"Failed to serialize object: {str(e)}")
         return json.dumps({"error": "serialization_failed", "type": str(type(obj))})
@@ -77,7 +80,7 @@ def validate_config(config: AgentConfig) -> list[str]:
     if not config.api_key or len(config.api_key) < 10:
         errors.append("api_key must be at least 10 characters long")
 
-    if not config.endpoint.startswith(('http://', 'https://')):
+    if not config.endpoint.startswith(("http://", "https://")):
         errors.append("endpoint must be a valid HTTP/HTTPS URL")
 
     if config.buffer_size <= 0:
@@ -127,7 +130,9 @@ class RateLimiter:
         now = time.time()
 
         # Remove old calls outside the time window
-        self.calls = [call_time for call_time in self.calls if now - call_time < self.time_window]
+        self.calls = [
+            call_time for call_time in self.calls if now - call_time < self.time_window
+        ]
 
         if len(self.calls) < self.max_calls:
             self.calls.append(now)
@@ -157,7 +162,10 @@ class CircuitBreaker:
     async def call(self, func, *args, **kwargs) -> Any:
         """Execute function with circuit breaker protection."""
         if self.state == "OPEN":
-            if self.last_failure_time and time.time() - self.last_failure_time > self.recovery_timeout:
+            if (
+                self.last_failure_time
+                and time.time() - self.last_failure_time > self.recovery_timeout
+            ):
                 self.state = "HALF_OPEN"
             else:
                 raise Exception("Circuit breaker is OPEN")

@@ -12,14 +12,17 @@ class AgentConfig(BaseModel):
 
     api_key: str = Field(description="Guard Agent API key")
     endpoint: str = Field(
-        default="https://api.fastapi-guard.com",
-        description="Agent endpoint URL"
+        default="https://api.fastapi-guard.com", description="Agent endpoint URL"
     )
-    project_id: str | None = Field(default=None, description="Project ID for organization")
+    project_id: str | None = Field(
+        default=None, description="Project ID for organization"
+    )
 
     # Buffering configuration
     buffer_size: int = Field(default=100, description="Event buffer size")
-    flush_interval: int = Field(default=30, description="Buffer flush interval in seconds")
+    flush_interval: int = Field(
+        default=30, description="Buffer flush interval in seconds"
+    )
 
     # Feature toggles
     enable_metrics: bool = Field(default=True, description="Send performance metrics")
@@ -33,11 +36,10 @@ class AgentConfig(BaseModel):
     # Data filtering
     sensitive_headers: list[str] = Field(
         default_factory=lambda: ["authorization", "cookie", "x-api-key"],
-        description="Headers to exclude from telemetry"
+        description="Headers to exclude from telemetry",
     )
     max_payload_size: int = Field(
-        default=1024,
-        description="Maximum payload size to include in events (bytes)"
+        default=1024, description="Maximum payload size to include in events (bytes)"
     )
 
     @field_validator("endpoint")
@@ -81,7 +83,7 @@ class SecurityEvent(BaseModel):
         "content_filtered",
         "emergency_mode_activated",
         "emergency_mode_block",
-        "dynamic_rule_violation"
+        "dynamic_rule_violation",
     ]
     ip_address: str
     country: str | None = None
@@ -110,7 +112,7 @@ class SecurityMetric(BaseModel):
         "bandwidth_usage",
         "threat_level",
         "block_rate",
-        "cache_hit_rate"
+        "cache_hit_rate",
     ]
     value: float
     endpoint: str | None = None
@@ -123,8 +125,13 @@ class DynamicRules(BaseModel):
     # Rule metadata
     rule_id: str = Field(default="default-rule", description="Unique rule ID")
     version: int = Field(default=1, description="Rule version number")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Rule creation/update timestamp")
-    expires_at: datetime | None = Field(default=None, description="Rule expiration time")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Rule creation/update timestamp",
+    )
+    expires_at: datetime | None = Field(
+        default=None, description="Rule expiration time"
+    )
     ttl: int = Field(default=300, description="Cache TTL in seconds")
 
     # IP management rules
@@ -133,54 +140,53 @@ class DynamicRules(BaseModel):
     ip_ban_duration: int = Field(default=3600, description="Ban duration in seconds")
 
     # Country/geo rules
-    blocked_countries: list[str] = Field(default_factory=list, description="Countries to block")
-    whitelist_countries: list[str] = Field(default_factory=list, description="Countries to allow")
+    blocked_countries: list[str] = Field(
+        default_factory=list, description="Countries to block"
+    )
+    whitelist_countries: list[str] = Field(
+        default_factory=list, description="Countries to allow"
+    )
 
     # Rate limiting rules
     global_rate_limit: int | None = Field(default=None, description="Global rate limit")
-    global_rate_window: int | None = Field(default=None, description="Global rate window")
+    global_rate_window: int | None = Field(
+        default=None, description="Global rate window"
+    )
     endpoint_rate_limits: dict[str, tuple[int, int]] = Field(
         default_factory=dict,
-        description="Per-endpoint rate limits {endpoint: (requests, window)}"
+        description="Per-endpoint rate limits {endpoint: (requests, window)}",
     )
 
     # Cloud provider rules
     blocked_cloud_providers: set[str] = Field(
-        default_factory=set,
-        description="Cloud providers to block"
+        default_factory=set, description="Cloud providers to block"
     )
 
     # User agent rules
     blocked_user_agents: list[str] = Field(
-        default_factory=list,
-        description="User agents to block"
+        default_factory=list, description="User agents to block"
     )
 
     # Pattern rules
     suspicious_patterns: list[str] = Field(
-        default_factory=list,
-        description="Additional suspicious patterns"
+        default_factory=list, description="Additional suspicious patterns"
     )
 
     # Feature toggles
     enable_penetration_detection: bool | None = Field(
-        default=None,
-        description="Override penetration detection setting"
+        default=None, description="Override penetration detection setting"
     )
     enable_ip_banning: bool | None = Field(
-        default=None,
-        description="Override IP banning setting"
+        default=None, description="Override IP banning setting"
     )
     enable_rate_limiting: bool | None = Field(
-        default=None,
-        description="Override rate limiting setting"
+        default=None, description="Override rate limiting setting"
     )
 
     # Emergency controls
     emergency_mode: bool = Field(default=False, description="Emergency lockdown mode")
     emergency_whitelist: list[str] = Field(
-        default_factory=list,
-        description="Emergency whitelist IPs"
+        default_factory=list, description="Emergency whitelist IPs"
     )
 
 

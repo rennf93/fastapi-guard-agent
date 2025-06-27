@@ -1,14 +1,15 @@
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from pydantic import ValidationError
 
 from guard_agent.models import (
     AgentConfig,
+    AgentStatus,
+    DynamicRules,
+    EventBatch,
     SecurityEvent,
     SecurityMetric,
-    DynamicRules,
-    AgentStatus,
-    EventBatch,
 )
 
 
@@ -20,7 +21,7 @@ class TestAgentConfig:
         config = AgentConfig(
             api_key="test-key",
             endpoint="https://api.example.com",
-            project_id="test-project"
+            project_id="test-project",
         )
 
         assert config.api_key == "test-key"
@@ -51,17 +52,23 @@ class TestAgentConfig:
 
     def test_invalid_endpoint_no_scheme(self) -> None:
         """Test that endpoint without scheme raises validation error."""
-        with pytest.raises(ValidationError, match="Endpoint must be a valid URL with scheme and domain"):
+        with pytest.raises(
+            ValidationError, match="Endpoint must be a valid URL with scheme and domain"
+        ):
             AgentConfig(api_key="test", endpoint="api.example.com")
 
     def test_invalid_endpoint_no_domain(self) -> None:
         """Test that endpoint without domain raises validation error."""
-        with pytest.raises(ValidationError, match="Endpoint must be a valid URL with scheme and domain"):
+        with pytest.raises(
+            ValidationError, match="Endpoint must be a valid URL with scheme and domain"
+        ):
             AgentConfig(api_key="test", endpoint="https://")
 
     def test_invalid_endpoint_scheme(self) -> None:
         """Test that endpoint with invalid scheme raises validation error."""
-        with pytest.raises(ValidationError, match="Endpoint URL must use http or https scheme"):
+        with pytest.raises(
+            ValidationError, match="Endpoint URL must use http or https scheme"
+        ):
             AgentConfig(api_key="test", endpoint="ftp://api.example.com")
 
     def test_valid_endpoint_http(self) -> None:
@@ -86,7 +93,7 @@ class TestSecurityEvent:
             event_type="ip_banned",
             ip_address="192.168.1.1",
             action_taken="banned",
-            reason="threshold_exceeded"
+            reason="threshold_exceeded",
         )
 
         assert event.timestamp == timestamp
@@ -103,7 +110,7 @@ class TestSecurityEvent:
                 event_type="invalid_type",
                 ip_address="192.168.1.1",
                 action_taken="banned",
-                reason="test"
+                reason="test",
             )
 
 
@@ -117,7 +124,7 @@ class TestSecurityMetric:
             timestamp=timestamp,
             metric_type="request_count",
             value=42.0,
-            tags={"endpoint": "/api/test"}
+            tags={"endpoint": "/api/test"},
         )
 
         assert metric.timestamp == timestamp
@@ -131,7 +138,7 @@ class TestSecurityMetric:
             SecurityMetric(
                 timestamp=datetime.now(timezone.utc),
                 metric_type="invalid_metric",
-                value=1.0
+                value=1.0,
             )
 
 
@@ -146,7 +153,7 @@ class TestDynamicRules:
             blocked_countries=["XX"],
             whitelist_countries=["US"],
             global_rate_limit=100,
-            ttl=300
+            ttl=300,
         )
 
         assert "192.168.1.1" in rules.ip_blacklist
@@ -182,7 +189,7 @@ class TestAgentStatus:
             uptime=3600.0,
             events_sent=100,
             events_failed=5,
-            buffer_size=10
+            buffer_size=10,
         )
 
         assert status.timestamp == timestamp
@@ -205,7 +212,7 @@ class TestEventBatch:
                 event_type="ip_banned",
                 ip_address="192.168.1.1",
                 action_taken="banned",
-                reason="test"
+                reason="test",
             )
         ]
 
@@ -213,7 +220,7 @@ class TestEventBatch:
             project_id="test-project",
             events=events,
             batch_id="test-batch-123",
-            created_at=timestamp
+            created_at=timestamp,
         )
 
         assert batch.project_id == "test-project"
