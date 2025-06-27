@@ -606,6 +606,42 @@ class TestHTTPTransport:
         assert result is True
 
     @pytest.mark.asyncio
+    async def test_handle_response_200_non_dict_json(
+        self, agent_config: AgentConfig
+    ) -> None:
+        """Test _handle_response with 200 status and valid JSON that's not a dict."""
+        transport = HTTPTransport(agent_config)
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.url = "http://test.com"
+
+        # Test with JSON array
+        mock_response.json = AsyncMock(return_value=["item1", "item2", "item3"])
+        result = await transport._handle_response(mock_response)
+        assert result is True
+
+        # Test with JSON string
+        mock_response.json = AsyncMock(return_value="just a string")
+        result = await transport._handle_response(mock_response)
+        assert result is True
+
+        # Test with JSON number
+        mock_response.json = AsyncMock(return_value=123)
+        result = await transport._handle_response(mock_response)
+        assert result is True
+
+        # Test with JSON boolean
+        mock_response.json = AsyncMock(return_value=True)
+        result = await transport._handle_response(mock_response)
+        assert result is True
+
+        # Test with JSON null
+        mock_response.json = AsyncMock(return_value=None)
+        result = await transport._handle_response(mock_response)
+        assert result is True
+
+    @pytest.mark.asyncio
     async def test_handle_response_429_rate_limited(
         self, agent_config: AgentConfig
     ) -> None:

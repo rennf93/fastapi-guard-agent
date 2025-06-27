@@ -42,7 +42,7 @@ class AgentConfig(BaseModel):
         default=1024, description="Maximum payload size to include in events (bytes)"
     )
 
-    @field_validator("endpoint")
+    @field_validator("endpoint")  # type: ignore
     @classmethod
     def validate_endpoint(cls, v: str) -> str:
         """Validate that endpoint is a valid URL."""

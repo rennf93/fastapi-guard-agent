@@ -3,6 +3,7 @@ import json
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
@@ -51,7 +52,7 @@ def calculate_backoff_delay(
     attempt: int, base_delay: float = 1.0, max_delay: float = 60.0
 ) -> float:
     """Calculate exponential backoff delay."""
-    delay = base_delay * (2**attempt)
+    delay = base_delay * float(2**attempt)
     return min(delay, max_delay)
 
 
@@ -67,7 +68,10 @@ async def safe_json_serialize(obj: Any) -> str:
 async def safe_json_deserialize(json_str: str) -> dict[str, Any] | None:
     """Safely deserialize JSON string with error handling."""
     try:
-        return json.loads(json_str)
+        result = json.loads(json_str)
+        if isinstance(result, dict):
+            return result
+        return None  # TODO: Missing coverage.
     except (TypeError, ValueError, json.JSONDecodeError) as e:
         logging.warning(f"Failed to deserialize JSON: {str(e)}")
         return None
@@ -159,7 +163,7 @@ class CircuitBreaker:
         self.last_failure_time: float | None = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
-    async def call(self, func, *args, **kwargs) -> Any:
+    async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function with circuit breaker protection."""
         if self.state == "OPEN":
             if (

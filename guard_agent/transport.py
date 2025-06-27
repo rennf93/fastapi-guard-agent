@@ -234,7 +234,8 @@ class HTTPTransport(TransportProtocol):
                     self._make_request, "GET", endpoint, None
                 )
 
-                if response_data:
+                # Only return dict data for GET requests, not boolean indicators
+                if isinstance(response_data, dict):
                     self.requests_sent += 1
                     return response_data
                 else:
@@ -255,7 +256,7 @@ class HTTPTransport(TransportProtocol):
 
     async def _make_request(
         self, method: str, endpoint: str, data: dict[str, Any] | None
-    ) -> Any:
+    ) -> dict[str, Any] | bool:
         """Make HTTP request with proper error handling."""
         if not self._session:
             await self.initialize()
@@ -291,7 +292,9 @@ class HTTPTransport(TransportProtocol):
             self.logger.error(f"Unexpected error for {method} {url}: {str(e)}")
             raise
 
-    async def _handle_response(self, response: aiohttp.ClientResponse) -> Any:
+    async def _handle_response(
+        self, response: aiohttp.ClientResponse
+    ) -> dict[str, Any] | bool:
         """Handle HTTP response with proper error checking."""
         # Log response
         self.logger.debug(f"Response: {response.status} for {response.url}")
@@ -299,7 +302,13 @@ class HTTPTransport(TransportProtocol):
         # Check status codes
         if response.status == 200:
             try:
-                return await response.json()
+                json_data = await response.json()
+                # Ensure we return a dict for successful JSON responses
+                if isinstance(json_data, dict):
+                    return json_data
+                else:
+                    # If JSON response is not a dict, treat as success
+                    return True  # TODO: Missing coverage.
             except Exception:
                 return True  # Success for non-JSON responses
 

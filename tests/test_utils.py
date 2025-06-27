@@ -119,6 +119,34 @@ class TestUtils:
         deserialized = await safe_json_deserialize(invalid_json_str)
         assert deserialized is None
 
+    @pytest.mark.asyncio
+    async def test_safe_json_deserialize_non_dict_json(self):
+        """Test safe_json_deserialize when JSON is valid but not a dict."""
+        # Test with JSON array
+        json_array = '["item1", "item2", "item3"]'
+        deserialized = await safe_json_deserialize(json_array)
+        assert deserialized is None
+
+        # Test with JSON string
+        json_string = '"just a string"'
+        deserialized = await safe_json_deserialize(json_string)
+        assert deserialized is None
+
+        # Test with JSON number
+        json_number = "123"
+        deserialized = await safe_json_deserialize(json_number)
+        assert deserialized is None
+
+        # Test with JSON boolean
+        json_boolean = "true"
+        deserialized = await safe_json_deserialize(json_boolean)
+        assert deserialized is None
+
+        # Test with JSON null
+        json_null = "null"
+        deserialized = await safe_json_deserialize(json_null)
+        assert deserialized is None
+
     def test_validate_config_success(self):
         config = AgentConfig(
             api_key="a" * 10,

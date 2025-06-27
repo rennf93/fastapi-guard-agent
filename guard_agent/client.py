@@ -26,6 +26,7 @@ class GuardAgentHandler(AgentHandlerProtocol):
     """
 
     _instance: "GuardAgentHandler | None" = None
+    _initialized: bool
 
     def __new__(cls, config: AgentConfig) -> "GuardAgentHandler":
         if cls._instance is None:
