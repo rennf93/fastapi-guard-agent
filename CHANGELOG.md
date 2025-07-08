@@ -1,6 +1,16 @@
 Release Notes
 =============
 
+___
+
+v0.1.0 (2025-07-08)
+-------------------
+
+Enhancements (v0.1.0)
+------------
+- Switched from aiohttp to httpx for HTTP client.
+- Completed implementation.
+- 100% test coverage.
 
 ___
 
