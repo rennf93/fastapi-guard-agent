@@ -1599,7 +1599,7 @@
 <ul>
 <li><strong><code>fastapi</code></strong> - FastAPI framework (any version)</li>
 <li><strong><code>pydantic</code></strong> ≥ 2.0 - Data validation and serialization</li>
-<li><strong><code>aiohttp</code></strong> ≥ 3.8.0 - Async HTTP client for transport</li>
+<li><strong><code>httpx</code></strong> - Async HTTP client for transport (FastAPI compatible)</li>
 <li><strong><code>redis</code></strong> ≥ 4.0.0 - Redis client for buffering (optional but recommended)</li>
 </ul>
 <h3 id="optional-dependencies">Optional Dependencies<a class="headerlink" href="#optional-dependencies" title="Permanent link">&para;</a></h3>
@@ -1783,7 +1783,7 @@
 </li>
 </ol>
 <h3 id="http-transport-issues">HTTP Transport Issues<a class="headerlink" href="#http-transport-issues" title="Permanent link">&para;</a></h3>
-<p><strong>Problem</strong>: <code>aiohttp.ClientError</code> or connection timeouts</p>
+<p><strong>Problem</strong>: <code>httpx.HTTPError</code> or connection timeouts</p>
 <p><strong>Solutions</strong>:
 1. Check your API endpoint configuration:
    <div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">config</span> <span class="o">=</span> <span class="n">AgentConfig</span><span class="p">(</span>
