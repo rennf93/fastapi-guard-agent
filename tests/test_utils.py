@@ -25,7 +25,7 @@ from guard_agent.utils import (
 
 
 class TestUtils:
-    def test_generate_batch_id(self):
+    def test_generate_batch_id(self) -> None:
         batch_id = generate_batch_id()
         assert isinstance(batch_id, str)
         assert len(batch_id) > 0
@@ -33,7 +33,7 @@ class TestUtils:
         assert len(parts) == 2
         assert parts[0].isdigit()  # timestamp part
 
-    def test_sanitize_headers(self):
+    def test_sanitize_headers(self) -> None:
         headers = {
             "Authorization": "Bearer token",
             "Content-Type": "application/json",
@@ -49,7 +49,7 @@ class TestUtils:
         assert sanitized["Custom-Header"] == "value"
         assert len(sanitized) == 4
 
-    def test_truncate_payload(self):
+    def test_truncate_payload(self) -> None:
         long_payload = "This is a very long payload that needs to be truncated."
         short_payload = "Short payload."
 
@@ -63,7 +63,7 @@ class TestUtils:
         edge_case_exact_size = truncate_payload("12345", 5)
         assert edge_case_exact_size == "12345"
 
-    def test_hash_ip(self):
+    def test_hash_ip(self) -> None:
         ip = "192.168.1.1"
         hashed_ip = hash_ip(ip)
         assert isinstance(hashed_ip, str)
@@ -74,14 +74,14 @@ class TestUtils:
         assert hashed_ip_with_salt != hashed_ip
         assert len(hashed_ip_with_salt) == 16
 
-    def test_get_current_timestamp(self):
+    def test_get_current_timestamp(self) -> None:
         timestamp = get_current_timestamp()
         assert isinstance(timestamp, datetime)
         assert timestamp.tzinfo == timezone.utc
         # Check if it's close to now (within a small margin)
         assert (datetime.now(timezone.utc) - timestamp).total_seconds() < 1
 
-    def test_calculate_backoff_delay(self):
+    def test_calculate_backoff_delay(self) -> None:
         assert calculate_backoff_delay(0) == 1.0
         assert calculate_backoff_delay(1) == 2.0
         assert calculate_backoff_delay(2) == 4.0
@@ -91,15 +91,15 @@ class TestUtils:
         )  # Should cap at max_delay
 
     @pytest.mark.asyncio
-    async def test_safe_json_serialize_success(self):
+    async def test_safe_json_serialize_success(self) -> None:
         data = {"key": "value", "number": 123}
         serialized = await safe_json_serialize(data)
         assert json.loads(serialized) == data
 
     @pytest.mark.asyncio
-    async def test_safe_json_serialize_with_unserializable_object(self):
+    async def test_safe_json_serialize_with_unserializable_object(self) -> None:
         class Unserializable:
-            def __str__(self):
+            def __str__(self) -> str:
                 raise TypeError("Cannot serialize this object")
 
         data = {"obj": Unserializable()}
@@ -108,19 +108,19 @@ class TestUtils:
         assert "error" in json.loads(serialized)
 
     @pytest.mark.asyncio
-    async def test_safe_json_deserialize_success(self):
+    async def test_safe_json_deserialize_success(self) -> None:
         json_str = '{"key": "value", "number": 123}'
         deserialized = await safe_json_deserialize(json_str)
         assert deserialized == {"key": "value", "number": 123}
 
     @pytest.mark.asyncio
-    async def test_safe_json_deserialize_invalid_json(self):
+    async def test_safe_json_deserialize_invalid_json(self) -> None:
         invalid_json_str = '{"key": "value", "number": 123'  # Missing closing brace
         deserialized = await safe_json_deserialize(invalid_json_str)
         assert deserialized is None
 
     @pytest.mark.asyncio
-    async def test_safe_json_deserialize_non_dict_json(self):
+    async def test_safe_json_deserialize_non_dict_json(self) -> None:
         """Test safe_json_deserialize when JSON is valid but not a dict."""
         # Test with JSON array
         json_array = '["item1", "item2", "item3"]'
@@ -147,7 +147,7 @@ class TestUtils:
         deserialized = await safe_json_deserialize(json_null)
         assert deserialized is None
 
-    def test_validate_config_success(self):
+    def test_validate_config_success(self) -> None:
         config = AgentConfig(
             api_key="a" * 10,
             endpoint="https://example.com",
@@ -246,15 +246,15 @@ class TestUtils:
     )
     def test_validate_config_failures(
         self,
-        api_key,
-        endpoint,
-        buffer_size,
-        flush_interval,
-        timeout,
-        retry_attempts,
-        backoff_factor,
-        expected_errors,
-    ):
+        api_key: str,
+        endpoint: str,
+        buffer_size: int,
+        flush_interval: int,
+        timeout: int,
+        retry_attempts: int,
+        backoff_factor: float,
+        expected_errors: list[str],
+    ) -> None:
         config = AgentConfig(
             api_key=api_key,
             endpoint=endpoint,
@@ -274,7 +274,9 @@ class TestUtils:
             ("ftp://example.com", "Endpoint URL must use http or https scheme"),
         ],
     )
-    def test_validate_config_endpoint_failures(self, endpoint, expected_error_msg):
+    def test_validate_config_endpoint_failures(
+        self, endpoint: str, expected_error_msg: str
+    ) -> None:
         with pytest.raises(ValidationError) as excinfo:
             AgentConfig(
                 api_key="a" * 10,
@@ -287,24 +289,26 @@ class TestUtils:
             )
         assert expected_error_msg in str(excinfo.value)
 
-    def test_validate_config_endpoint_non_http_https_scheme(self):
-        # Create a mock config object that bypasses Pydantic validation
-        class MockAgentConfig:
-            def __init__(self):
-                self.api_key = "a" * 10
-                self.endpoint = "ws://example.com"  # Invalid scheme for the check
-                self.buffer_size = 1
-                self.flush_interval = 1
-                self.timeout = 1
-                self.retry_attempts = 0
-                self.backoff_factor = 0.1
+    def test_validate_config_endpoint_non_http_https_scheme(self) -> None:
+        # Create a valid AgentConfig and then manually set invalid endpoint
+        config = AgentConfig(
+            api_key="a" * 10,
+            endpoint="https://example.com",  # Valid scheme initially
+            buffer_size=1,
+            flush_interval=1,
+            timeout=1,
+            retry_attempts=0,
+            backoff_factor=0.1,
+        )
 
-        mock_config = MockAgentConfig()
-        errors = validate_config(mock_config)
+        # Manually override the endpoint to test our validation logic
+        object.__setattr__(config, "endpoint", "ws://example.com")
+
+        errors = validate_config(config)
         assert "endpoint must be a valid HTTP/HTTPS URL" in errors
 
     @pytest.mark.asyncio
-    async def test_setup_agent_logging(self):
+    async def test_setup_agent_logging(self) -> None:
         # Ensure handlers are cleared before test to avoid interference
         logging.getLogger("guard_agent").handlers = []
 
@@ -324,7 +328,7 @@ class TestUtils:
 
 
 class TestRateLimiter:
-    def test_acquire_within_limit(self):
+    def test_acquire_within_limit(self) -> None:
         limiter = RateLimiter(max_calls=3, time_window=10)
         with patch("time.time", side_effect=[0, 1, 2]):
             assert asyncio.run(limiter.acquire()) is True
@@ -332,18 +336,18 @@ class TestRateLimiter:
             assert asyncio.run(limiter.acquire()) is True
             assert len(limiter.calls) == 3
 
-    def test_acquire_exceed_limit(self):
+    def test_acquire_exceed_limit(self) -> None:
         limiter = RateLimiter(max_calls=1, time_window=10)
         with patch("time.time", side_effect=[0, 1]):
             assert asyncio.run(limiter.acquire()) is True
             assert asyncio.run(limiter.acquire()) is False  # Exceeds limit
 
     @pytest.mark.asyncio
-    async def test_acquire_old_calls_removed(self):
+    async def test_acquire_old_calls_removed(self) -> None:
         limiter = RateLimiter(max_calls=2, time_window=10)
         current_time = 0
 
-        def mock_time():
+        def mock_time() -> float:
             nonlocal current_time
             current_time += 1
             return current_time
@@ -378,7 +382,7 @@ class TestRateLimiter:
             assert limiter.calls == [12, 13]
 
     @pytest.mark.asyncio
-    async def test_get_retry_after(self):
+    async def test_get_retry_after(self) -> None:
         limiter = RateLimiter(max_calls=1, time_window=10)
 
         # Test case 1: No calls
@@ -411,14 +415,14 @@ class TestRateLimiter:
                 limiter.get_retry_after() == 0.0
             )  # Oldest is 0. 10 - (11 - 0) = -1, capped at 0
 
-    def test_get_retry_after_no_calls(self):
+    def test_get_retry_after_no_calls(self) -> None:
         limiter = RateLimiter(max_calls=1, time_window=10)
         assert limiter.get_retry_after() == 0.0
 
 
 class TestCircuitBreaker:
     @pytest.mark.asyncio
-    async def test_closed_state_success(self):
+    async def test_closed_state_success(self) -> None:
         breaker = CircuitBreaker(failure_threshold=2, recovery_timeout=1)
         mock_func = AsyncMock(return_value="success")
 
@@ -428,7 +432,7 @@ class TestCircuitBreaker:
         assert breaker.failure_count == 0
 
     @pytest.mark.asyncio
-    async def test_closed_state_failure_below_threshold(self):
+    async def test_closed_state_failure_below_threshold(self) -> None:
         breaker = CircuitBreaker(failure_threshold=2, recovery_timeout=1)
         mock_func = AsyncMock(side_effect=Exception("test error"))
 
@@ -443,7 +447,7 @@ class TestCircuitBreaker:
         assert breaker.failure_count == 2
 
     @pytest.mark.asyncio
-    async def test_open_state(self):
+    async def test_open_state(self) -> None:
         breaker = CircuitBreaker(failure_threshold=1, recovery_timeout=10)
         mock_func = AsyncMock(side_effect=Exception("test error"))
 
@@ -455,13 +459,13 @@ class TestCircuitBreaker:
             await breaker.call(mock_func)  # Should raise immediately
 
     @pytest.mark.asyncio
-    async def test_half_open_state_success(self):
+    async def test_half_open_state_success(self) -> None:
         breaker = CircuitBreaker(failure_threshold=1, recovery_timeout=1)
         mock_func = AsyncMock(return_value="success")
 
-        current_time = 0
+        current_time = 0.0
 
-        def mock_time():
+        def mock_time() -> float:
             nonlocal current_time
             current_time += 1
             return current_time
@@ -482,13 +486,13 @@ class TestCircuitBreaker:
             assert breaker.failure_count == 0
 
     @pytest.mark.asyncio
-    async def test_half_open_state_failure(self):
+    async def test_half_open_state_failure(self) -> None:
         breaker = CircuitBreaker(failure_threshold=1, recovery_timeout=1)
         mock_func = AsyncMock(side_effect=Exception("test error"))
 
-        current_time = 0
+        current_time = 0.0
 
-        def mock_time():
+        def mock_time() -> float:
             nonlocal current_time
             current_time += 1
             return current_time

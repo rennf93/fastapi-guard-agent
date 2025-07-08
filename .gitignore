@@ -179,3 +179,5 @@ cython_debug/
 .DS_Store
 .cursor/
 ZZZ/
+CLAUDE.md
+.claude/

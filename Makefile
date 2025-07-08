@@ -29,25 +29,9 @@ stop:
 # Lint code
 .PHONY: lint
 lint:
-	@echo "Formatting w/ Ruff..."
-	@echo ''
-	@uv run ruff format .
-	@echo ''
-	@echo ''
-	@echo "Linting w/ Ruff..."
-	@echo ''
-	@uv run ruff check .
-	@echo ''
-	@echo ''
-	@echo "Type checking w/ Mypy..."
-	@echo ''
-	@uv run mypy .
-	@find . | grep -E "(__pycache__|\\.pyc|\\.pyo|\\.pytest_cache|\\.ruff_cache|\\.mypy_cache)" | xargs rm -rf
-# .PHONY: lint
-# lint:
-# 	@COMPOSE_BAKE=true docker compose run --rm --no-deps fastapi-guard-agent sh -c "echo 'Formatting w/ Ruff...' ; echo '' ; ruff format . ; echo '' ; echo '' ; echo 'Linting w/ Ruff...' ; echo '' ; ruff check . ; echo '' ; echo '' ; echo 'Type checking w/ Mypy...' ; echo '' ; mypy ."
-# 	@docker compose down --rmi all --remove-orphans -v
-# 	@docker system prune -f
+	@COMPOSE_BAKE=true docker compose run --rm --no-deps fastapi-guard-agent sh -c "echo 'Formatting w/ Ruff...' ; echo '' ; ruff format . ; echo '' ; echo '' ; echo 'Linting w/ Ruff...' ; echo '' ; ruff check . ; echo '' ; echo '' ; echo 'Type checking w/ Mypy...' ; echo '' ; mypy ."
+	@docker compose down --rmi all --remove-orphans -v
+	@docker system prune -f
 
 # Fix code
 .PHONY: fix

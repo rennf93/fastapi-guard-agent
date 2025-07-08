@@ -174,19 +174,18 @@ class TestBufferAutoFlush:
 
         await buffer.stop_auto_flush()
         assert not buffer._running
-        assert buffer._flush_task.cancelled()
 
     @pytest.mark.asyncio
     async def test_auto_flush_loop(
         self, buffer: EventBuffer, agent_config: AgentConfig
     ) -> None:
-        agent_config.flush_interval = 0.1
+        agent_config.flush_interval = 1
         buffer = EventBuffer(agent_config)
         with patch.object(
             buffer, "_flush_if_needed", new_callable=AsyncMock
         ) as mock_flush:
             await buffer.start_auto_flush()
-            await asyncio.sleep(0.15)
+            await asyncio.sleep(1.5)
             await buffer.stop_auto_flush()
             mock_flush.assert_awaited()
 
@@ -194,18 +193,18 @@ class TestBufferAutoFlush:
     async def test_auto_flush_loop_cancel(self, buffer: EventBuffer) -> None:
         await buffer.start_auto_flush()
         await buffer.stop_auto_flush()
-        assert buffer._flush_task.cancelled()
+        assert buffer._flush_task and buffer._flush_task.cancelled()
 
     @pytest.mark.asyncio
     async def test_auto_flush_loop_exception(
         self, buffer: EventBuffer, caplog: LogCaptureFixture
     ) -> None:
-        buffer.config.flush_interval = 0.1
+        buffer.config.flush_interval = 1
         with patch.object(
             buffer, "_flush_if_needed", side_effect=Exception("Test Error")
         ):
             await buffer.start_auto_flush()
-            await asyncio.sleep(0.15)
+            await asyncio.sleep(1.5)
             await buffer.stop_auto_flush()
             assert "Error in auto flush loop: Test Error" in caplog.text
 

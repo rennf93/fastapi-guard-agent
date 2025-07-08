@@ -321,6 +321,42 @@ class GuardAgentHandler(AgentHandlerProtocol):
             "rules_last_update": self._rules_last_update,
         }
 
+    async def health_check(self) -> bool:
+        """
+        Check if the agent is healthy and connected.
+
+        Returns:
+            True if agent is healthy, False otherwise
+        """
+        if not self._running:
+            return False
+
+        try:
+            # Check transport health
+            transport_stats = self.transport.get_stats()
+            if transport_stats.get("circuit_breaker_state") == "OPEN":
+                return False
+
+            # Check buffer health
+            buffer_size = await self.buffer.get_buffer_size()
+            if buffer_size >= self.config.buffer_size * 0.95:  # 95% full
+                return False
+
+            # Check failure rates
+            total_sent = self.events_sent + self.metrics_sent
+            total_failed = self.events_failed + self.metrics_failed
+            total_attempts = total_sent + total_failed
+
+            if total_attempts > 0:
+                failure_rate = total_failed / total_attempts
+                if failure_rate > 0.5:  # 50% failure rate
+                    return False
+
+            return True
+        except Exception as e:
+            self.logger.error(f"Error during health check: {str(e)}")
+            return False
+
 
 # Singleton factory function following fastapi-guard pattern
 def guard_agent(config: AgentConfig) -> GuardAgentHandler:

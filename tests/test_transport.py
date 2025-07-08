@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 from types import TracebackType
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import aiohttp
@@ -90,23 +91,25 @@ class TestHTTPTransport:
         """Test send_events when an exception occurs during the send process."""
         transport = HTTPTransport(agent_config)
         transport._session = mock_session
-        transport._send_with_retry = AsyncMock(
-            side_effect=Exception("Test Send Events Exception")
-        )
 
-        events = [
-            SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
-                event_type="ip_banned",
-                ip_address="192.168.1.1",
-                action_taken="banned",
-                reason="test",
-            )
-        ]
+        with patch.object(
+            transport,
+            "_send_with_retry",
+            side_effect=Exception("Test Send Events Exception"),
+        ):
+            events = [
+                SecurityEvent(
+                    timestamp=datetime.now(timezone.utc),
+                    event_type="ip_banned",
+                    ip_address="192.168.1.1",
+                    action_taken="banned",
+                    reason="test",
+                )
+            ]
 
-        result = await transport.send_events(events)
-        assert result is False
-        assert transport.requests_failed == 1
+            result = await transport.send_events(events)
+            assert result is False
+            assert transport.requests_failed == 1
 
     @pytest.mark.asyncio
     async def test_send_metrics_exception_during_send(
@@ -115,21 +118,23 @@ class TestHTTPTransport:
         """Test send_metrics when an exception occurs during the send process."""
         transport = HTTPTransport(agent_config)
         transport._session = mock_session
-        transport._send_with_retry = AsyncMock(
-            side_effect=Exception("Test Send Metrics Exception")
-        )
 
-        metrics = [
-            SecurityMetric(
-                timestamp=datetime.now(timezone.utc),
-                metric_type="request_count",
-                value=1.0,
-            )
-        ]
+        with patch.object(
+            transport,
+            "_send_with_retry",
+            side_effect=Exception("Test Send Metrics Exception"),
+        ):
+            metrics = [
+                SecurityMetric(
+                    timestamp=datetime.now(timezone.utc),
+                    metric_type="request_count",
+                    value=1.0,
+                )
+            ]
 
-        result = await transport.send_metrics(metrics)
-        assert result is False
-        assert transport.requests_failed == 1
+            result = await transport.send_metrics(metrics)
+            assert result is False
+            assert transport.requests_failed == 1
 
     @pytest.mark.asyncio
     async def test_rate_limiting(self, agent_config: AgentConfig) -> None:
@@ -161,9 +166,9 @@ class TestHTTPTransport:
         # Configure mock for retry logic - first call fails, second succeeds
         call_count = 0
 
-        def create_context_manager(status: int, text_or_json: str | dict):
+        def create_context_manager(status: int, text_or_json: str | dict) -> Any:
             class RetryMockContextManager:
-                def __init__(self, status: int, text_or_json: str | dict):
+                def __init__(self, status: int, text_or_json: str | dict) -> None:
                     self.status = status
                     self.text_or_json = text_or_json
 
@@ -791,7 +796,7 @@ class TestHTTPTransport:
         transport._session = None
 
         # Mock initialize to succeed but leave session as None
-        async def mock_initialize():
+        async def mock_initialize() -> None:
             # Simulate initialize succeeding but session somehow ending up None
             pass
 

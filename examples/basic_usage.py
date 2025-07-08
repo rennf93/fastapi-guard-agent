@@ -8,12 +8,15 @@ This example shows how to:
 """
 
 import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 
 from guard_agent import (
     AgentConfig,
+    GuardAgentHandler,
     SecurityEvent,
     SecurityMetric,
     get_current_timestamp,
@@ -22,7 +25,7 @@ from guard_agent import (
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan for FastAPI application."""
     agent = await get_agent(
         AgentConfig(
@@ -38,13 +41,13 @@ async def lifespan(app: FastAPI):
         await agent.stop()
 
 
-async def get_agent(config: AgentConfig):
+async def get_agent(config: AgentConfig) -> GuardAgentHandler:
     """Get agent instance."""
     agent = guard_agent(config)
     return agent
 
 
-async def basic_agent_usage():
+async def basic_agent_usage() -> None:
     """Example of basic agent usage."""
     print("=== Basic Agent Usage ===")
 
@@ -134,7 +137,7 @@ async def basic_agent_usage():
         print("Agent stopped")
 
 
-def create_fastapi_app_with_agent():
+def create_fastapi_app_with_agent() -> FastAPI:
     """Example of integrating agent with FastAPI application."""
     print("\n=== FastAPI Integration Example ===")
 
@@ -149,12 +152,12 @@ def create_fastapi_app_with_agent():
     )
 
     @app.get("/")
-    async def root():
+    async def root() -> dict[str, str]:
         """Root endpoint."""
         return {"message": "FastAPI Guard Agent Demo"}
 
     @app.get("/trigger-event")
-    async def trigger_event():
+    async def trigger_event() -> dict[str, str]:
         """Manually trigger a security event."""
         agent = guard_agent(agent_config)
 
@@ -172,7 +175,7 @@ def create_fastapi_app_with_agent():
         return {"message": "Security event sent", "event_type": event.event_type}
 
     @app.get("/agent-status")
-    async def agent_status():
+    async def agent_status() -> dict[str, Any]:
         """Get current agent status."""
         agent = guard_agent(agent_config)
         status = await agent.get_status()
@@ -192,7 +195,7 @@ def create_fastapi_app_with_agent():
     return app
 
 
-async def redis_integration_example():
+async def redis_integration_example() -> None:
     """Example showing Redis integration."""
     print("\n=== Redis Integration Example ===")
 
@@ -210,7 +213,7 @@ async def redis_integration_example():
     print("This enables distributed buffering and persistence")
 
 
-async def main():
+async def main() -> None:
     """Run all examples."""
     print("FastAPI Guard Agent Examples")
     print("=" * 40)

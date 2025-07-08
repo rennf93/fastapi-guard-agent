@@ -1,10 +1,17 @@
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+# Monkey-patch the guard library to include AgentConfig import
+# This is needed because the guard library's SecurityConfig.to_agent_config()
+# method references AgentConfig without importing it
+import guard.models
 import pytest
 
 from guard_agent.buffer import EventBuffer
 from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric
+
+setattr(guard.models, "AgentConfig", AgentConfig)  # noqa: B010
 
 
 @pytest.fixture
@@ -56,13 +63,13 @@ def mock_session() -> AsyncMock:
 
     # Create a proper context manager
     class MockContextManager:
-        def __init__(self, response):
+        def __init__(self, response: Any) -> None:
             self.response = response
 
-        async def __aenter__(self):
+        async def __aenter__(self) -> Any:
             return self.response
 
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
+        async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
             pass
 
     mock_session = AsyncMock()

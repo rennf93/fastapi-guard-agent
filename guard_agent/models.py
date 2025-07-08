@@ -65,6 +65,8 @@ class SecurityEvent(BaseModel):
     timestamp: datetime
     event_type: Literal[
         "ip_banned",
+        "ip_unbanned",
+        "ip_blocked",
         "rate_limited",
         "suspicious_request",
         "cloud_blocked",
@@ -75,15 +77,22 @@ class SecurityEvent(BaseModel):
         "custom_rule_triggered",
         "decorator_violation",
         "geo_lookup_failed",
+        "redis_connection",
         "redis_error",
         "dynamic_rule_applied",
+        "dynamic_rule_updated",
         "pattern_detected",
+        "pattern_added",
+        "pattern_removed",
         "access_denied",
         "authentication_failed",
         "content_filtered",
         "emergency_mode_activated",
         "emergency_mode_block",
         "dynamic_rule_violation",
+        "security_bypass",
+        "config_violation",
+        "protocol_violation",
     ]
     ip_address: str
     country: str | None = None

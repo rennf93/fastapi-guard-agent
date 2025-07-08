@@ -1,5 +1,7 @@
 import asyncio
+from collections.abc import Generator
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,7 +17,7 @@ from guard_agent.models import (
 
 
 @pytest.fixture(autouse=True)
-def reset_singleton():
+def reset_singleton() -> Generator[None, None, None]:
     """Reset GuardAgentHandler singleton before each test."""
     GuardAgentHandler._instance = None
     yield
@@ -31,7 +33,9 @@ class TestGuardAgentHandler:
 
         assert handler1 is handler2
 
-    def test_singleton_reinitialization_updates_config(self, agent_config: AgentConfig):
+    def test_singleton_reinitialization_updates_config(
+        self, agent_config: AgentConfig
+    ) -> None:
         """Test that re-initializing the singleton updates the config."""
         handler1 = GuardAgentHandler(agent_config)
         assert handler1.config.buffer_size == 10
@@ -77,7 +81,7 @@ class TestGuardAgentHandler:
         handler.buffer.add_event.assert_called_once_with(event)
 
     @pytest.mark.asyncio
-    async def test_send_event_disabled(self, agent_config: AgentConfig):
+    async def test_send_event_disabled(self, agent_config: AgentConfig) -> None:
         """Test send_event when events are disabled."""
         config = agent_config.model_copy(update={"enable_events": False})
         handler = GuardAgentHandler(config)
@@ -94,7 +98,9 @@ class TestGuardAgentHandler:
         handler.buffer.add_event.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_send_event_buffering_error(self, agent_config: AgentConfig, caplog):
+    async def test_send_event_buffering_error(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test error handling when buffering an event fails."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
@@ -124,7 +130,7 @@ class TestGuardAgentHandler:
         handler.buffer.add_metric.assert_called_once_with(metric)
 
     @pytest.mark.asyncio
-    async def test_send_metric_disabled(self, agent_config: AgentConfig):
+    async def test_send_metric_disabled(self, agent_config: AgentConfig) -> None:
         """Test send_metric when metrics are disabled."""
         config = agent_config.model_copy(update={"enable_metrics": False})
         handler = GuardAgentHandler(config)
@@ -137,7 +143,9 @@ class TestGuardAgentHandler:
         handler.buffer.add_metric.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_send_metric_buffering_error(self, agent_config: AgentConfig, caplog):
+    async def test_send_metric_buffering_error(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test error handling when buffering a metric fails."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
@@ -182,11 +190,11 @@ class TestGuardAgentHandler:
 
         await handler.stop()
         assert handler._running is False
-        handler.transport.close.assert_called_once()
+        handler.transport.close.assert_called_once()  # type: ignore[unreachable]
         handler.buffer.stop_auto_flush.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_stop_calls_flush(self, agent_config: AgentConfig):
+    async def test_stop_calls_flush(self, agent_config: AgentConfig) -> None:
         """Test that stop() calls flush_buffer()."""
         handler = GuardAgentHandler(agent_config)
         handler.transport = AsyncMock()
@@ -194,10 +202,11 @@ class TestGuardAgentHandler:
 
         await handler.start()
 
-        handler.flush_buffer = AsyncMock()
-        await handler.stop()
-
-        handler.flush_buffer.assert_called_once()
+        with patch.object(
+            handler, "flush_buffer", new_callable=AsyncMock
+        ) as mock_flush:
+            await handler.stop()
+            mock_flush.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_flush_buffer(self, agent_config: AgentConfig) -> None:
@@ -260,7 +269,9 @@ class TestGuardAgentHandler:
         assert "transport_stats" in stats
 
     @pytest.mark.asyncio
-    async def test_start_already_running(self, agent_config: AgentConfig, caplog):
+    async def test_start_already_running(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test starting the agent when it's already running."""
         handler = GuardAgentHandler(agent_config)
         handler.transport = AsyncMock()
@@ -275,7 +286,9 @@ class TestGuardAgentHandler:
         await handler.stop()
 
     @pytest.mark.asyncio
-    async def test_start_failure(self, agent_config: AgentConfig, caplog):
+    async def test_start_failure(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test agent start failure."""
         handler = GuardAgentHandler(agent_config)
         handler.transport = AsyncMock()
@@ -289,7 +302,7 @@ class TestGuardAgentHandler:
         assert handler._running is False
 
     @pytest.mark.asyncio
-    async def test_get_dynamic_rules_cached(self, agent_config: AgentConfig):
+    async def test_get_dynamic_rules_cached(self, agent_config: AgentConfig) -> None:
         """Test getting dynamic rules from cache."""
         handler = GuardAgentHandler(agent_config)
         cached_rules = DynamicRules(ttl=300)
@@ -303,7 +316,9 @@ class TestGuardAgentHandler:
         handler.transport.fetch_dynamic_rules.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_get_dynamic_rules_expired_cache(self, agent_config: AgentConfig):
+    async def test_get_dynamic_rules_expired_cache(
+        self, agent_config: AgentConfig
+    ) -> None:
         """Test fetching new rules when cache is expired."""
         handler = GuardAgentHandler(agent_config)
         new_rules = DynamicRules(rule_id="new-rules")
@@ -321,8 +336,8 @@ class TestGuardAgentHandler:
 
     @pytest.mark.asyncio
     async def test_get_dynamic_rules_fetch_error(
-        self, agent_config: AgentConfig, caplog
-    ):
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test handling of fetch error for dynamic rules."""
         handler = GuardAgentHandler(agent_config)
         cached_rules = DynamicRules(ttl=300)
@@ -339,7 +354,9 @@ class TestGuardAgentHandler:
         assert rules is cached_rules
 
     @pytest.mark.asyncio
-    async def test_flush_buffer_send_failure(self, agent_config: AgentConfig, caplog):
+    async def test_flush_buffer_send_failure(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test buffer flush when sending events/metrics fails."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
@@ -360,7 +377,9 @@ class TestGuardAgentHandler:
         assert f"Failed to send {len(test_metrics)} metrics" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_flush_buffer_exception(self, agent_config: AgentConfig, caplog):
+    async def test_flush_buffer_exception(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test exception handling during buffer flush."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
@@ -370,7 +389,9 @@ class TestGuardAgentHandler:
         assert "Error during buffer flush: Flush error" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_get_status_degraded_circuit_breaker(self, agent_config: AgentConfig):
+    async def test_get_status_degraded_circuit_breaker(
+        self, agent_config: AgentConfig
+    ) -> None:
         """Test degraded status when circuit breaker is open."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
@@ -386,7 +407,7 @@ class TestGuardAgentHandler:
         assert "Transport circuit breaker is open" in agent_status.errors
 
     @pytest.mark.asyncio
-    async def test_get_status_buffer_full(self, agent_config: AgentConfig):
+    async def test_get_status_buffer_full(self, agent_config: AgentConfig) -> None:
         """Test degraded status when buffer is nearly full."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
@@ -404,7 +425,9 @@ class TestGuardAgentHandler:
         assert "Buffer nearly full" in agent_status.errors
 
     @pytest.mark.asyncio
-    async def test_get_status_high_failure_rate(self, agent_config: AgentConfig):
+    async def test_get_status_high_failure_rate(
+        self, agent_config: AgentConfig
+    ) -> None:
         """Test degraded status due to high failure rate."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
@@ -424,14 +447,14 @@ class TestGuardAgentHandler:
         assert any("High failure rate" in e for e in agent_status.errors)
 
     @pytest.mark.asyncio
-    async def test_close(self, agent_config: AgentConfig):
+    async def test_close(self, agent_config: AgentConfig) -> None:
         """Test the close method."""
         handler = GuardAgentHandler(agent_config)
-        handler.stop = AsyncMock()
-        await handler.close()
-        handler.stop.assert_called_once()
+        with patch.object(handler, "stop", new_callable=AsyncMock) as mock_stop:
+            await handler.close()
+            mock_stop.assert_called_once()
 
-    def test_get_stats_comprehensive(self, agent_config: AgentConfig):
+    def test_get_stats_comprehensive(self, agent_config: AgentConfig) -> None:
         """Test get_stats for comprehensive output."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = MagicMock()
@@ -448,7 +471,7 @@ class TestGuardAgentHandler:
         assert stats["rules_last_update"] == 12345.67
 
     @pytest.mark.asyncio
-    async def test_start_stop_no_project_id(self, agent_config: AgentConfig):
+    async def test_start_stop_no_project_id(self, agent_config: AgentConfig) -> None:
         """Test start/stop when project_id is not configured."""
         config = agent_config.model_copy(update={"project_id": None})
         handler = GuardAgentHandler(config)
@@ -463,129 +486,159 @@ class TestGuardAgentHandler:
         assert handler._running is False
 
     @pytest.mark.asyncio
-    async def test_flush_loop(self, agent_config: AgentConfig):
+    async def test_flush_loop(self, agent_config: AgentConfig) -> None:
         """Test the background flush loop."""
         config = agent_config.model_copy(update={"flush_interval": 0.01})
         handler = GuardAgentHandler(config)
-        handler.flush_buffer = AsyncMock()
-        handler._running = True
 
-        task = asyncio.create_task(handler._flush_loop())
-        await asyncio.sleep(0.05)
-        handler._running = False
-        await task
+        with patch.object(
+            handler, "flush_buffer", new_callable=AsyncMock
+        ) as mock_flush:
+            handler._running = True
 
-        assert handler.flush_buffer.call_count > 1
+            task = asyncio.create_task(handler._flush_loop())
+            await asyncio.sleep(0.05)
+            handler._running = False
+            await task
+
+            assert mock_flush.call_count > 1
 
     @pytest.mark.asyncio
-    async def test_status_loop(self, agent_config: AgentConfig):
+    async def test_status_loop(self, agent_config: AgentConfig) -> None:
         """Test the background status reporting loop."""
         config = agent_config.model_copy(update={"project_id": "test-project"})
         handler = GuardAgentHandler(config)
         handler.transport = AsyncMock()
         handler._running = True
 
-        def stop_loop_after_2_calls(*args, **kwargs):
-            if handler.get_status.call_count >= 2:
-                handler._running = False
-            return MagicMock()
+        with patch.object(
+            handler, "get_status", new_callable=AsyncMock
+        ) as mock_get_status:
 
-        handler.get_status = AsyncMock(side_effect=stop_loop_after_2_calls)
+            def stop_loop_after_2_calls(*args: Any, **kwargs: Any) -> Any:
+                if mock_get_status.call_count >= 2:
+                    handler._running = False
+                return MagicMock()
 
-        # Mock sleep to return immediately and allow the loop to run
-        with patch(
-            "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
-        ) as mock_sleep:
-            mock_sleep.return_value = None
-            await handler._status_loop()
+            mock_get_status.side_effect = stop_loop_after_2_calls
 
-        assert handler.get_status.call_count > 1
+            # Mock sleep to return immediately and allow the loop to run
+            with patch(
+                "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep:
+                mock_sleep.return_value = None
+                await handler._status_loop()
+
+            assert mock_get_status.call_count > 1
         assert handler.transport.send_status.call_count > 1
 
     @pytest.mark.asyncio
-    async def test_rules_loop(self, agent_config: AgentConfig):
+    async def test_rules_loop(self, agent_config: AgentConfig) -> None:
         """Test the background dynamic rules fetching loop."""
         config = agent_config.model_copy(update={"project_id": "test-project"})
         handler = GuardAgentHandler(config)
         handler._running = True
 
-        def stop_loop_after_2_calls(*args, **kwargs):
-            if handler.get_dynamic_rules.call_count >= 2:
-                handler._running = False
+        with patch.object(
+            handler, "get_dynamic_rules", new_callable=AsyncMock
+        ) as mock_get_rules:
 
-        handler.get_dynamic_rules = AsyncMock(side_effect=stop_loop_after_2_calls)
+            def stop_loop_after_2_calls(*args: Any, **kwargs: Any) -> Any:
+                if mock_get_rules.call_count >= 2:
+                    handler._running = False
 
-        # Mock sleep to return immediately and allow the loop to run
-        with patch(
-            "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
-        ) as mock_sleep:
-            mock_sleep.return_value = None
-            await handler._rules_loop()
+            mock_get_rules.side_effect = stop_loop_after_2_calls
 
-        assert handler.get_dynamic_rules.call_count > 1
+            # Mock sleep to return immediately and allow the loop to run
+            with patch(
+                "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep:
+                mock_sleep.return_value = None
+                await handler._rules_loop()
+
+            assert mock_get_rules.call_count > 1
 
     @pytest.mark.asyncio
-    async def test_flush_loop_exception(self, agent_config: AgentConfig, caplog):
+    async def test_flush_loop_exception(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test exception handling in the flush loop."""
         config = agent_config.model_copy(update={"flush_interval": 0.01})
         handler = GuardAgentHandler(config)
-        handler.flush_buffer = AsyncMock(side_effect=Exception("Flush failed"))
-        handler._running = True
+        with patch.object(
+            handler,
+            "flush_buffer",
+            new_callable=AsyncMock,
+            side_effect=Exception("Flush failed"),
+        ):
+            handler._running = True
 
-        task = asyncio.create_task(handler._flush_loop())
-        await asyncio.sleep(0.05)
-        handler._running = False
-        await task
+            task = asyncio.create_task(handler._flush_loop())
+            await asyncio.sleep(0.05)
+            handler._running = False
+            await task
 
-        assert "Error in flush loop: Flush failed" in caplog.text
+            assert "Error in flush loop: Flush failed" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_status_loop_exception(self, agent_config: AgentConfig, caplog):
+    async def test_status_loop_exception(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test exception handling in the status loop."""
         handler = GuardAgentHandler(agent_config)
         handler._running = True
 
-        def raise_exception_then_stop(*args, **kwargs):
-            if handler.get_status.call_count == 1:
-                raise Exception("Status failed")
-            handler._running = False
+        with patch.object(
+            handler, "get_status", new_callable=AsyncMock
+        ) as mock_get_status:
 
-        handler.get_status = AsyncMock(side_effect=raise_exception_then_stop)
+            def raise_exception_then_stop(*args: Any, **kwargs: Any) -> Any:
+                if mock_get_status.call_count == 1:
+                    raise Exception("Status failed")
+                handler._running = False
 
-        # Mock sleep to return immediately and allow the loop to run
-        with patch(
-            "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
-        ) as mock_sleep:
-            mock_sleep.return_value = None
-            await handler._status_loop()
+            mock_get_status.side_effect = raise_exception_then_stop
 
-        assert "Error in status loop: Status failed" in caplog.text
+            # Mock sleep to return immediately and allow the loop to run
+            with patch(
+                "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep:
+                mock_sleep.return_value = None
+                await handler._status_loop()
+
+            assert "Error in status loop: Status failed" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_rules_loop_exception(self, agent_config: AgentConfig, caplog):
+    async def test_rules_loop_exception(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test exception handling in the rules loop."""
         config = agent_config.model_copy(update={"project_id": "test-project"})
         handler = GuardAgentHandler(config)
         handler._running = True
 
-        def raise_exception_then_stop(*args, **kwargs):
-            if handler.get_dynamic_rules.call_count == 1:
-                raise Exception("Rules fetch failed")
-            handler._running = False
+        with patch.object(
+            handler, "get_dynamic_rules", new_callable=AsyncMock
+        ) as mock_get_rules:
 
-        handler.get_dynamic_rules = AsyncMock(side_effect=raise_exception_then_stop)
+            def raise_exception_then_stop(*args: Any, **kwargs: Any) -> Any:
+                if mock_get_rules.call_count == 1:
+                    raise Exception("Rules fetch failed")
+                handler._running = False
 
-        # Mock sleep to return immediately and allow the loop to run
-        with patch(
-            "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
-        ) as mock_sleep:
-            mock_sleep.return_value = None
-            await handler._rules_loop()
+            mock_get_rules.side_effect = raise_exception_then_stop
 
-        assert "Error in rules loop: Rules fetch failed" in caplog.text
+            # Mock sleep to return immediately and allow the loop to run
+            with patch(
+                "guard_agent.client.asyncio.sleep", new_callable=AsyncMock
+            ) as mock_sleep:
+                mock_sleep.return_value = None
+                await handler._rules_loop()
+
+            assert "Error in rules loop: Rules fetch failed" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_configuration_validation_failure(self):
+    async def test_configuration_validation_failure(self) -> None:
         """Test that invalid configuration raises ValueError (line 40)."""
         # Create a config with invalid api_key (too short)
         with pytest.raises(ValueError, match="Invalid agent configuration"):
@@ -596,51 +649,145 @@ class TestGuardAgentHandler:
             GuardAgentHandler(invalid_config)
 
     @pytest.mark.asyncio
-    async def test_flush_loop_cancelled_error(self, agent_config: AgentConfig):
+    async def test_flush_loop_cancelled_error(self, agent_config: AgentConfig) -> None:
         """Test CancelledError handling in flush loop (line 257)."""
         handler = GuardAgentHandler(agent_config)
         handler._running = True
-        handler.flush_buffer = AsyncMock()  # Mock to avoid actual flushing
+        with patch.object(
+            handler, "flush_buffer", new_callable=AsyncMock
+        ):  # Mock to avoid actual flushing
+            # Start the flush loop task
+            flush_task = asyncio.create_task(handler._flush_loop())
 
-        # Start the flush loop task
-        flush_task = asyncio.create_task(handler._flush_loop())
+            # Wait a bit to let the task start and hit the sleep, then cancel
+            await asyncio.sleep(0.01)
+            flush_task.cancel()
 
-        # Wait a bit to let the task start and hit the sleep, then cancel
-        await asyncio.sleep(0.01)
-        flush_task.cancel()
-
-        await flush_task
+            await flush_task
 
     @pytest.mark.asyncio
-    async def test_status_loop_cancelled_error(self, agent_config: AgentConfig):
+    async def test_status_loop_cancelled_error(self, agent_config: AgentConfig) -> None:
         """Test CancelledError handling in status loop (line 271)."""
         handler = GuardAgentHandler(agent_config)
         handler._running = True
-        handler.get_status = AsyncMock()  # Mock to avoid actual status generation
-        handler.transport = AsyncMock()  # Mock transport
+        with patch.object(
+            handler, "get_status", new_callable=AsyncMock
+        ):  # Mock to avoid actual status generation
+            handler.transport = AsyncMock()  # Mock transport
 
-        # Start the status loop task
-        status_task = asyncio.create_task(handler._status_loop())
+            # Start the status loop task
+            status_task = asyncio.create_task(handler._status_loop())
 
-        # Wait a bit to let the task start and hit the sleep, then cancel
-        await asyncio.sleep(0.01)
-        status_task.cancel()
+            # Wait a bit to let the task start and hit the sleep, then cancel
+            await asyncio.sleep(0.01)
+            status_task.cancel()
 
-        await status_task
+            await status_task
 
     @pytest.mark.asyncio
-    async def test_rules_loop_cancelled_error(self, agent_config: AgentConfig):
+    async def test_rules_loop_cancelled_error(self, agent_config: AgentConfig) -> None:
         """Test CancelledError handling in rules loop (line 284)."""
         config = agent_config.model_copy(update={"project_id": "test-project"})
         handler = GuardAgentHandler(config)
         handler._running = True
-        handler.get_dynamic_rules = AsyncMock()  # Mock to avoid actual rules fetching
+        with patch.object(
+            handler, "get_dynamic_rules", new_callable=AsyncMock
+        ):  # Mock to avoid actual rules fetching
+            # Start the rules loop task
+            rules_task = asyncio.create_task(handler._rules_loop())
 
-        # Start the rules loop task
-        rules_task = asyncio.create_task(handler._rules_loop())
+            # Wait a bit to let the task start and hit the sleep, then cancel
+            await asyncio.sleep(0.01)
+            rules_task.cancel()
 
-        # Wait a bit to let the task start and hit the sleep, then cancel
-        await asyncio.sleep(0.01)
-        rules_task.cancel()
+            await rules_task
 
-        await rules_task
+    @staticmethod
+    def _setup_high_failure_rate(handler: GuardAgentHandler) -> None:
+        """Helper to set up high failure rate scenario."""
+        handler.events_sent = 10
+        handler.metrics_sent = 10
+        handler.events_failed = 15
+        handler.metrics_failed = 15
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "scenario,setup",
+        [
+            ("not_running", lambda h: setattr(h, "_running", False)),
+            (
+                "circuit_breaker_open",
+                lambda h: h.transport.get_stats.return_value.__setitem__(
+                    "circuit_breaker_state", "OPEN"
+                ),
+            ),
+            (
+                "buffer_nearly_full",
+                lambda h: setattr(
+                    h.buffer.get_buffer_size,
+                    "return_value",
+                    h.config.buffer_size * 0.95,
+                ),
+            ),
+            (
+                "high_failure_rate",
+                lambda h: TestGuardAgentHandler._setup_high_failure_rate(h),
+            ),
+        ],
+    )
+    async def test_health_check_failure_scenarios(
+        self, agent_config: AgentConfig, scenario: str, setup: Any
+    ) -> None:
+        """Test health_check returns False for various failure scenarios."""
+        handler = GuardAgentHandler(agent_config)
+        handler._running = True
+        handler.buffer = AsyncMock()
+        handler.buffer.get_buffer_size = AsyncMock(
+            return_value=5
+        )  # Default healthy buffer
+        handler.transport = MagicMock()
+        handler.transport.get_stats = MagicMock(
+            return_value={"circuit_breaker_state": "CLOSED"}
+        )
+
+        # Apply scenario-specific setup
+        setup(handler)
+
+        result = await handler.health_check()
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_health_check_success(self, agent_config: AgentConfig) -> None:
+        """Test health_check returns True when everything is healthy."""
+        handler = GuardAgentHandler(agent_config)
+        handler._running = True
+        handler.buffer = AsyncMock()
+        handler.buffer.get_buffer_size = AsyncMock(return_value=5)  # Low buffer usage
+        handler.transport = MagicMock()
+        handler.transport.get_stats = MagicMock(
+            return_value={"circuit_breaker_state": "CLOSED"}
+        )
+        handler.events_sent = 100
+        handler.metrics_sent = 100
+        handler.events_failed = 5
+        handler.metrics_failed = 5  # Low failure rate
+
+        result = await handler.health_check()
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_health_check_exception(
+        self, agent_config: AgentConfig, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test health_check handles exceptions gracefully."""
+        handler = GuardAgentHandler(agent_config)
+        handler._running = True
+        handler.buffer = AsyncMock()
+        handler.buffer.get_buffer_size = AsyncMock(
+            side_effect=Exception("Buffer error")
+        )
+        handler.transport = MagicMock()
+
+        result = await handler.health_check()
+        assert result is False
+        assert "Error during health check: Buffer error" in caplog.text
