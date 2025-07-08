@@ -238,5 +238,5 @@ Acknowledgements
 
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [Redis](https://redis.io/)
-- [aiohttp](https://docs.aiohttp.org/)
+- [httpx](https://www.python-httpx.org/)
 - [Pydantic](https://pydantic-docs.helpmanual.io/)

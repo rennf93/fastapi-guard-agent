@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 # Monkey-patch the guard library to include AgentConfig import
@@ -54,31 +53,22 @@ def mock_transport() -> AsyncMock:
 
 
 @pytest.fixture
-def mock_session() -> AsyncMock:
-    """Create a mock aiohttp session."""
+def mock_client() -> AsyncMock:
+    """Create a mock httpx client."""
     mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json = AsyncMock(return_value={"status": "ok"})
-    mock_response.text = AsyncMock(return_value="OK")
+    mock_response.status_code = 200
+    mock_response.json = MagicMock(return_value={"status": "ok"})
+    mock_response.text = "OK"
+    mock_response.headers = {}
+    mock_response.url = "http://localhost:8000/test"
 
-    # Create a proper context manager
-    class MockContextManager:
-        def __init__(self, response: Any) -> None:
-            self.response = response
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_client.get = AsyncMock(return_value=mock_response)
+    mock_client.is_closed = False
+    mock_client.aclose = AsyncMock()
 
-        async def __aenter__(self) -> Any:
-            return self.response
-
-        async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-            pass
-
-    mock_session = AsyncMock()
-    mock_session.post = MagicMock(return_value=MockContextManager(mock_response))
-    mock_session.get = MagicMock(return_value=MockContextManager(mock_response))
-    mock_session.closed = False
-    mock_session.close = AsyncMock()
-
-    return mock_session
+    return mock_client
 
 
 @pytest.fixture

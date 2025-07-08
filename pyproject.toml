@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 dependencies = [
-    "aiohttp",
+    "httpx",
     "fastapi",
     "fastapi-guard",
     "pydantic",
@@ -114,7 +114,7 @@ module = "pydantic.*"
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "aiohttp.*"
+module = "httpx.*"
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]

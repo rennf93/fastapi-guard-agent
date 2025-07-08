@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Any
 
-import aiohttp
+import httpx
 
 from guard_agent.models import (
     AgentConfig,
@@ -33,9 +33,8 @@ class HTTPTransport(TransportProtocol):
         self.config = config
         self.logger = logging.getLogger(__name__)
 
-        # HTTP session management
-        self._session: aiohttp.ClientSession | None = None
-        self._connector: aiohttp.TCPConnector | None = None
+        # HTTP client management
+        self._client: httpx.AsyncClient | None = None
 
         # Reliability features
         self.circuit_breaker = CircuitBreaker(
@@ -52,28 +51,11 @@ class HTTPTransport(TransportProtocol):
         self.bytes_sent = 0
 
     async def initialize(self) -> None:
-        """Initialize HTTP session and connector."""
-        if self._session and not self._session.closed:
+        """Initialize HTTP client."""
+        if self._client and not self._client.is_closed:
             return
 
         try:
-            # Create connector with connection pooling
-            self._connector = aiohttp.TCPConnector(
-                limit=10,  # Total connection pool size
-                limit_per_host=5,  # Connections per host
-                ttl_dns_cache=300,  # DNS cache TTL
-                use_dns_cache=True,
-                keepalive_timeout=30,
-                enable_cleanup_closed=True,
-            )
-
-            # Create session with timeouts
-            timeout = aiohttp.ClientTimeout(
-                total=self.config.timeout,
-                connect=10,
-                sock_read=self.config.timeout,
-            )
-
             # Setup headers
             headers = {
                 "User-Agent": "FastAPI-Guard-Agent/0.0.1",
@@ -84,11 +66,20 @@ class HTTPTransport(TransportProtocol):
             if self.config.project_id:
                 headers["X-Project-ID"] = self.config.project_id
 
-            self._session = aiohttp.ClientSession(
-                connector=self._connector,
-                timeout=timeout,
+            # Create client with timeouts and connection pooling
+            self._client = httpx.AsyncClient(
                 headers=headers,
-                raise_for_status=False,  # Handle status codes manually
+                timeout=httpx.Timeout(
+                    timeout=self.config.timeout,
+                    connect=10.0,
+                    read=self.config.timeout,
+                ),
+                limits=httpx.Limits(
+                    max_connections=10,
+                    max_keepalive_connections=5,
+                    keepalive_expiry=30.0,
+                ),
+                follow_redirects=False,  # Handle redirects manually
             )
 
             self.logger.info("HTTP transport initialized successfully")
@@ -98,12 +89,9 @@ class HTTPTransport(TransportProtocol):
             raise
 
     async def close(self) -> None:
-        """Close HTTP session and connector."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-
-        if self._connector:
-            await self._connector.close()
+        """Close HTTP client."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
 
     async def send_events(self, events: list[SecurityEvent]) -> bool:
         """Send security events to the SaaS platform."""
@@ -258,11 +246,11 @@ class HTTPTransport(TransportProtocol):
         self, method: str, endpoint: str, data: dict[str, Any] | None
     ) -> dict[str, Any] | bool:
         """Make HTTP request with proper error handling."""
-        if not self._session:
+        if not self._client:
             await self.initialize()
 
-        if not self._session:
-            raise Exception("Failed to initialize HTTP session")
+        if not self._client:
+            raise Exception("Failed to initialize HTTP client")
 
         url = f"{self.config.endpoint.rstrip('/')}{endpoint}"
 
@@ -272,17 +260,17 @@ class HTTPTransport(TransportProtocol):
                 json_data = await safe_json_serialize(data)
                 self.bytes_sent += len(json_data.encode("utf-8"))
 
-                async with self._session.post(url, data=json_data) as response:
-                    return await self._handle_response(response)
+                response = await self._client.post(url, content=json_data)
+                return await self._handle_response(response)
 
             elif method == "GET":
-                async with self._session.get(url) as response:
-                    return await self._handle_response(response)
+                response = await self._client.get(url)
+                return await self._handle_response(response)
 
             else:
                 raise ValueError(f"Unsupported method: {method}")
 
-        except aiohttp.ClientError as e:
+        except httpx.HTTPError as e:
             self.logger.error(f"HTTP client error for {method} {url}: {str(e)}")
             raise
         except asyncio.TimeoutError as e:
@@ -292,17 +280,15 @@ class HTTPTransport(TransportProtocol):
             self.logger.error(f"Unexpected error for {method} {url}: {str(e)}")
             raise
 
-    async def _handle_response(
-        self, response: aiohttp.ClientResponse
-    ) -> dict[str, Any] | bool:
+    async def _handle_response(self, response: httpx.Response) -> dict[str, Any] | bool:
         """Handle HTTP response with proper error checking."""
         # Log response
-        self.logger.debug(f"Response: {response.status} for {response.url}")
+        self.logger.debug(f"Response: {response.status_code} for {response.url}")
 
         # Check status codes
-        if response.status == 200:
+        if response.status_code == 200:
             try:
-                json_data = await response.json()
+                json_data = response.json()
                 # Ensure we return a dict for successful JSON responses
                 if isinstance(json_data, dict):
                     return json_data
@@ -312,27 +298,27 @@ class HTTPTransport(TransportProtocol):
             except Exception:
                 return True  # Success for non-JSON responses
 
-        elif response.status == 201:
+        elif response.status_code == 201:
             return True  # Created successfully
 
-        elif response.status == 429:
+        elif response.status_code == 429:
             # Rate limited by server
             retry_after = response.headers.get("Retry-After", "60")
             raise Exception(f"Rate limited by server, retry after {retry_after}s")
 
-        elif response.status in [401, 403]:
+        elif response.status_code in [401, 403]:
             # Authentication/authorization error
-            raise Exception(f"Authentication failed: {response.status}")
+            raise Exception(f"Authentication failed: {response.status_code}")
 
-        elif response.status >= 500:
+        elif response.status_code >= 500:
             # Server error - retryable
-            error_text = await response.text()
-            raise Exception(f"Server error {response.status}: {error_text}")
+            error_text = response.text
+            raise Exception(f"Server error {response.status_code}: {error_text}")
 
         else:
             # Client error - likely not retryable
-            error_text = await response.text()
-            self.logger.error(f"Client error {response.status}: {error_text}")
+            error_text = response.text
+            self.logger.error(f"Client error {response.status_code}: {error_text}")
             return False
 
     def get_stats(self) -> dict[str, Any]:
@@ -343,5 +329,5 @@ class HTTPTransport(TransportProtocol):
             "bytes_sent": self.bytes_sent,
             "circuit_breaker_state": self.circuit_breaker.state,
             "failure_count": self.circuit_breaker.failure_count,
-            "session_closed": self._session.closed if self._session else True,
+            "session_closed": self._client.is_closed if self._client else True,
         }

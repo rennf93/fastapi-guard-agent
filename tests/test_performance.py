@@ -2,7 +2,6 @@ import asyncio
 import os
 import time
 from datetime import datetime, timezone
-from types import TracebackType
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import psutil
@@ -167,24 +166,15 @@ class TestPerformanceImpact:
         config = AgentConfig(api_key="test", timeout=1)
         transport = HTTPTransport(config)
 
-        # Mock HTTP session with proper context manager
+        # Mock HTTP client
         mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={"status": "ok"})
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={"status": "ok"})
 
-        class MockContextManager:
-            async def __aenter__(self) -> AsyncMock:
-                return mock_response
-
-            async def __aexit__(
-                self, exc_type: type, exc_val: Exception, exc_tb: TracebackType
-            ) -> None:
-                pass
-
-        mock_session = AsyncMock()
-        mock_session.post = MagicMock(return_value=MockContextManager())
-        mock_session.close = AsyncMock()
-        transport._session = mock_session
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.aclose = AsyncMock()
+        transport._client = mock_client
 
         events = [
             SecurityEvent(

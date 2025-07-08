@@ -20,7 +20,7 @@ The agent has the following core dependencies that will be automatically install
 
 - **`fastapi`** - FastAPI framework (any version)
 - **`pydantic`** ≥ 2.0 - Data validation and serialization
-- **`aiohttp`** ≥ 3.8.0 - Async HTTP client for transport
+- **`httpx`** - Async HTTP client for transport (FastAPI compatible)
 - **`redis`** ≥ 4.0.0 - Redis client for buffering (optional but recommended)
 
 ### Optional Dependencies
@@ -257,7 +257,7 @@ if __name__ == "__main__":
 
 ### HTTP Transport Issues
 
-**Problem**: `aiohttp.ClientError` or connection timeouts
+**Problem**: `httpx.HTTPError` or connection timeouts
 
 **Solutions**:
 1. Check your API endpoint configuration:

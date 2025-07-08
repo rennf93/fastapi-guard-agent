@@ -1,10 +1,9 @@
 import asyncio
 from datetime import datetime, timezone
-from types import TracebackType
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
-import aiohttp
+import httpx
 import pytest
 
 from guard_agent.models import AgentConfig, AgentStatus, SecurityEvent, SecurityMetric
@@ -19,28 +18,28 @@ class TestHTTPTransport:
         """Test transport initialization."""
         transport = HTTPTransport(agent_config)
 
-        with patch("aiohttp.ClientSession") as mock_session:
+        with patch("httpx.AsyncClient") as mock_client:
             await transport.initialize()
 
-            # Verify session was created
-            mock_session.assert_called_once()
+            # Verify client was created
+            mock_client.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_initialization_failure(self, agent_config: AgentConfig) -> None:
         """Test transport initialization failure."""
         transport = HTTPTransport(agent_config)
 
-        with patch("aiohttp.ClientSession", side_effect=Exception("Test Init Error")):
+        with patch("httpx.AsyncClient", side_effect=Exception("Test Init Error")):
             with pytest.raises(Exception, match="Test Init Error"):
                 await transport.initialize()
 
     @pytest.mark.asyncio
     async def test_send_events_success(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test successful event sending."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         events = [
             SecurityEvent(
@@ -55,20 +54,21 @@ class TestHTTPTransport:
         result = await transport.send_events(events)
 
         assert result is True
-        mock_session.post.assert_called_once()
+        mock_client.post.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_send_events_failure(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test event sending failure handling."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         # Configure mock for failure response
-        mock_response = await mock_session.post.return_value.__aenter__()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal Server Error")
+        mock_response = AsyncMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_client.post.return_value = mock_response
 
         events = [
             SecurityEvent(
@@ -86,11 +86,11 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_send_events_exception_during_send(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test send_events when an exception occurs during the send process."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         with patch.object(
             transport,
@@ -113,11 +113,11 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_send_metrics_exception_during_send(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test send_metrics when an exception occurs during the send process."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         with patch.object(
             transport,
@@ -156,48 +156,32 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_retry_logic(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test retry logic for failed requests."""
         agent_config.retry_attempts = 2
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         # Configure mock for retry logic - first call fails, second succeeds
         call_count = 0
 
-        def create_context_manager(status: int, text_or_json: str | dict) -> Any:
-            class RetryMockContextManager:
-                def __init__(self, status: int, text_or_json: str | dict) -> None:
-                    self.status = status
-                    self.text_or_json = text_or_json
+        def create_mock_response(*args: Any, **kwargs: Any) -> AsyncMock:
+            nonlocal call_count
+            call_count += 1
 
-                async def __aenter__(self) -> AsyncMock:
-                    nonlocal call_count
-                    call_count += 1
-
-                    mock_response = AsyncMock()
-                    mock_response.status = self.status
-                    if self.status == 500:
-                        mock_response.text = AsyncMock(return_value=self.text_or_json)
-                    else:
-                        mock_response.json = AsyncMock(return_value=self.text_or_json)
-                    return mock_response
-
-                async def __aexit__(
-                    self, exc_type: type, exc_val: Exception, exc_tb: TracebackType
-                ) -> None:
-                    pass
-
-            if call_count == 0:
-                return RetryMockContextManager(500, "Server Error")
+            mock_response = AsyncMock()
+            if call_count == 1:
+                # First call fails
+                mock_response.status_code = 500
+                mock_response.text = "Server Error"
             else:
-                return RetryMockContextManager(200, {"status": "ok"})
+                # Second call succeeds
+                mock_response.status_code = 200
+                mock_response.json = MagicMock(return_value={"status": "ok"})
+            return mock_response
 
-        mock_session.post.side_effect = lambda *args, **kwargs: create_context_manager(
-            500 if call_count == 0 else 200,
-            "Server Error" if call_count == 0 else {"status": "ok"},
-        )
+        mock_client.post.side_effect = create_mock_response
 
         events = [
             SecurityEvent(
@@ -217,14 +201,14 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_send_with_retry_all_attempts_fail(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test _send_with_retry when all retry attempts fail."""
         agent_config.retry_attempts = 2
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
-        mock_session.post.side_effect = aiohttp.ClientError("Simulated Network Error")
+        mock_client.post.side_effect = httpx.HTTPError("Simulated Network Error")
 
         events = [
             SecurityEvent(
@@ -241,18 +225,18 @@ class TestHTTPTransport:
 
         assert result is False
         assert transport.requests_failed == 1
-        assert mock_session.post.call_count == 3  # Initial + 2 retries
+        assert mock_client.post.call_count == 3  # Initial + 2 retries
 
     @pytest.mark.asyncio
     async def test_send_with_retry_make_request_returns_false(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """
         Test _send_with_retry when _make_request returns False (e.g., client error).
         """
         agent_config.retry_attempts = 0  # No retries
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         with patch.object(
             transport, "_make_request", return_value=False
@@ -274,12 +258,12 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_get_with_retry_make_request_returns_none(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test _get_with_retry when _make_request returns None (e.g., no rules)."""
         agent_config.retry_attempts = 0  # No retries
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         with patch.object(
             transport, "_make_request", return_value=None
@@ -296,7 +280,7 @@ class TestHTTPTransport:
     ) -> None:
         """Test _make_request when session initialization fails."""
         transport = HTTPTransport(agent_config)
-        transport._session = None
+        transport._client = None
 
         with patch.object(
             transport, "initialize", side_effect=Exception("Init Failed")
@@ -306,22 +290,25 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_fetch_dynamic_rules(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test fetching dynamic rules."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         # Configure mock for dynamic rules response
-        mock_response = await mock_session.get.return_value.__aenter__()
-        mock_response.status = 200
-        mock_response.json.return_value = {
-            "rule_id": "test-rule-123",
-            "version": 1,
-            "timestamp": "2025-01-08T10:00:00Z",
-            "ip_blacklist": ["192.168.1.1"],
-            "ttl": 300,
-        }
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(
+            return_value={
+                "rule_id": "test-rule-123",
+                "version": 1,
+                "timestamp": "2025-01-08T10:00:00Z",
+                "ip_blacklist": ["192.168.1.1"],
+                "ttl": 300,
+            }
+        )
+        mock_client.get.return_value = mock_response
 
         rules = await transport.fetch_dynamic_rules()
 
@@ -332,27 +319,28 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_fetch_dynamic_rules_failure(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test fetching dynamic rules failure."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
-        mock_session.get.side_effect = Exception("Test Fetch Rules Exception")
+        transport._client = mock_client
+        mock_client.get.side_effect = Exception("Test Fetch Rules Exception")
 
         rules = await transport.fetch_dynamic_rules()
         assert rules is None
 
     @pytest.mark.asyncio
     async def test_send_status(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test sending agent status."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         # Configure mock for status response
-        mock_response = await mock_session.post.return_value.__aenter__()
-        mock_response.status = 201
+        mock_response = AsyncMock()
+        mock_response.status_code = 201
+        mock_client.post.return_value = mock_response
 
         status = AgentStatus(
             timestamp=datetime.now(timezone.utc),
@@ -372,11 +360,11 @@ class TestHTTPTransport:
         """Test that authentication headers are properly set."""
         transport = HTTPTransport(agent_config)
 
-        with patch("aiohttp.ClientSession") as mock_session_class:
+        with patch("httpx.AsyncClient") as mock_client_class:
             await transport.initialize()
 
             # Check that session was created with auth header
-            call_args = mock_session_class.call_args
+            call_args = mock_client_class.call_args
             headers = call_args[1]["headers"]
 
             assert "Authorization" in headers
@@ -396,28 +384,27 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_close(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test transport cleanup."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         await transport.close()
 
-        mock_session.close.assert_called_once()
+        mock_client.aclose.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_initialize_already_initialized(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test that initialize does nothing if already initialized."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session  # Simulate already initialized session
-        transport._session.closed = False
+        transport._client = mock_client  # Simulate already initialized client
 
-        with patch("aiohttp.ClientSession") as mock_session_class:
+        with patch("httpx.AsyncClient") as mock_client_class:
             await transport.initialize()
-            mock_session_class.assert_not_called()  # Should not create a new session
+            mock_client_class.assert_not_called()  # Should not create a new client
 
     @pytest.mark.asyncio
     async def test_send_events_empty_list(self, agent_config: AgentConfig) -> None:
@@ -435,41 +422,42 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_get_with_retry_rate_limited(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test _get_with_retry when rate limited."""
         agent_config.retry_attempts = 1
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         with patch.object(transport.rate_limiter, "acquire", side_effect=[False, True]):
             with patch("asyncio.sleep"):
-                mock_response = await mock_session.get.return_value.__aenter__()
-                mock_response.status = 200
-                mock_response.json.return_value = {"status": "ok"}
+                mock_response = AsyncMock()
+                mock_response.status_code = 200
+                mock_response.json = MagicMock(return_value={"status": "ok"})
+                mock_client.get.return_value = mock_response
 
                 rules = await transport.fetch_dynamic_rules()
                 assert rules is not None
                 assert transport.requests_sent == 1
 
     @pytest.mark.asyncio
-    async def test_make_request_session_none_after_initialize(
+    async def test_make_request_client_none_after_initialize(
         self, agent_config: AgentConfig
     ) -> None:
         """
-        Test _make_request when session is None initially, but initialized successfully.
+        Test _make_request when client is None initially, but initialized successfully.
         """
         transport = HTTPTransport(agent_config)
-        transport._session = None  # Ensure session is None
+        transport._client = None  # Ensure client is None
 
         with patch.object(
             transport, "initialize", wraps=transport.initialize
         ) as mock_initialize:
-            with patch("aiohttp.ClientSession.post") as mock_post:
+            with patch("httpx.AsyncClient.post") as mock_post:
                 mock_response = AsyncMock()
-                mock_response.status = 200
-                mock_response.json.return_value = {"status": "ok"}
-                mock_post.return_value.__aenter__.return_value = mock_response
+                mock_response.status_code = 200
+                mock_response.json = MagicMock(return_value={"status": "ok"})
+                mock_post.return_value = mock_response
 
                 result = await transport._make_request(
                     "POST", "/test", {"key": "value"}
@@ -480,18 +468,19 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_send_with_retry_rate_limited(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test _send_with_retry when rate limited."""
         agent_config.retry_attempts = 1
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         with patch.object(transport.rate_limiter, "acquire", side_effect=[False, True]):
             with patch("asyncio.sleep"):
-                mock_response = await mock_session.post.return_value.__aenter__()
-                mock_response.status = 200
-                mock_response.json.return_value = {"status": "ok"}
+                mock_response = AsyncMock()
+                mock_response.status_code = 200
+                mock_response.json = MagicMock(return_value={"status": "ok"})
+                mock_client.post.return_value = mock_response
 
                 events = [
                     SecurityEvent(
@@ -508,12 +497,12 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_send_with_retry_circuit_breaker_open(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test _send_with_retry when circuit breaker is open."""
         agent_config.retry_attempts = 0
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
         transport.circuit_breaker.state = "OPEN"
 
         events = [
@@ -530,19 +519,19 @@ class TestHTTPTransport:
         assert transport.requests_failed == 1
 
     @pytest.mark.asyncio
-    async def test_make_request_session_none(self, agent_config: AgentConfig) -> None:
-        """Test _make_request when session is None initially."""
+    async def test_make_request_client_none(self, agent_config: AgentConfig) -> None:
+        """Test _make_request when client is None initially."""
         transport = HTTPTransport(agent_config)
-        transport._session = None  # Ensure session is None
+        transport._client = None  # Ensure client is None
 
         with patch.object(
             transport, "initialize", wraps=transport.initialize
         ) as mock_initialize:
-            with patch("aiohttp.ClientSession.post") as mock_post:
+            with patch("httpx.AsyncClient.post") as mock_post:
                 mock_response = AsyncMock()
-                mock_response.status = 200
-                mock_response.json.return_value = {"status": "ok"}
-                mock_post.return_value.__aenter__.return_value = mock_response
+                mock_response.status_code = 200
+                mock_response.json = MagicMock(return_value={"status": "ok"})
+                mock_post.return_value = mock_response
 
                 result = await transport._make_request(
                     "POST", "/test", {"key": "value"}
@@ -553,36 +542,36 @@ class TestHTTPTransport:
 
     @pytest.mark.asyncio
     async def test_make_request_client_error(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
-        """Test _make_request with aiohttp.ClientError."""
+        """Test _make_request with httpx.HTTPError."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
-        mock_session.post.side_effect = aiohttp.ClientError("Test Client Error")
+        transport._client = mock_client
+        mock_client.post.side_effect = httpx.HTTPError("Test Client Error")
 
-        with pytest.raises(aiohttp.ClientError):
+        with pytest.raises(httpx.HTTPError):
             await transport._make_request("POST", "/test", {"key": "value"})
 
     @pytest.mark.asyncio
     async def test_make_request_timeout_error(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test _make_request with asyncio.TimeoutError."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
-        mock_session.post.side_effect = asyncio.TimeoutError("Test Timeout Error")
+        transport._client = mock_client
+        mock_client.post.side_effect = asyncio.TimeoutError("Test Timeout Error")
 
         with pytest.raises(asyncio.TimeoutError):
             await transport._make_request("POST", "/test", {"key": "value"})
 
     @pytest.mark.asyncio
     async def test_make_request_generic_exception(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test _make_request with a generic Exception."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
-        mock_session.post.side_effect = Exception("Generic Error")
+        transport._client = mock_client
+        mock_client.post.side_effect = Exception("Generic Error")
 
         with pytest.raises(Exception, match="Generic Error"):
             await transport._make_request("POST", "/test", {"key": "value"})
@@ -603,8 +592,8 @@ class TestHTTPTransport:
         """Test _handle_response with 200 status and non-JSON content."""
         transport = HTTPTransport(agent_config)
         mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.json.side_effect = Exception("Not JSON")
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(side_effect=Exception("Not JSON"))
         mock_response.url = "http://test.com"
 
         result = await transport._handle_response(mock_response)
@@ -618,31 +607,31 @@ class TestHTTPTransport:
         transport = HTTPTransport(agent_config)
 
         mock_response = AsyncMock()
-        mock_response.status = 200
+        mock_response.status_code = 200
         mock_response.url = "http://test.com"
 
         # Test with JSON array
-        mock_response.json = AsyncMock(return_value=["item1", "item2", "item3"])
+        mock_response.json = MagicMock(return_value=["item1", "item2", "item3"])
         result = await transport._handle_response(mock_response)
         assert result is True
 
         # Test with JSON string
-        mock_response.json = AsyncMock(return_value="just a string")
+        mock_response.json = MagicMock(return_value="just a string")
         result = await transport._handle_response(mock_response)
         assert result is True
 
         # Test with JSON number
-        mock_response.json = AsyncMock(return_value=123)
+        mock_response.json = MagicMock(return_value=123)
         result = await transport._handle_response(mock_response)
         assert result is True
 
         # Test with JSON boolean
-        mock_response.json = AsyncMock(return_value=True)
+        mock_response.json = MagicMock(return_value=True)
         result = await transport._handle_response(mock_response)
         assert result is True
 
         # Test with JSON null
-        mock_response.json = AsyncMock(return_value=None)
+        mock_response.json = MagicMock(return_value=None)
         result = await transport._handle_response(mock_response)
         assert result is True
 
@@ -653,7 +642,7 @@ class TestHTTPTransport:
         """Test _handle_response with 429 status (Rate Limited)."""
         transport = HTTPTransport(agent_config)
         mock_response = AsyncMock()
-        mock_response.status = 429
+        mock_response.status_code = 429
         mock_response.headers = {"Retry-After": "120"}
         mock_response.url = "http://test.com"
 
@@ -667,7 +656,7 @@ class TestHTTPTransport:
         """Test _handle_response with 401 status (Unauthorized)."""
         transport = HTTPTransport(agent_config)
         mock_response = AsyncMock()
-        mock_response.status = 401
+        mock_response.status_code = 401
         mock_response.url = "http://test.com"
 
         with pytest.raises(Exception, match="Authentication failed: 401"):
@@ -680,7 +669,7 @@ class TestHTTPTransport:
         """Test _handle_response with 403 status (Forbidden)."""
         transport = HTTPTransport(agent_config)
         mock_response = AsyncMock()
-        mock_response.status = 403
+        mock_response.status_code = 403
         mock_response.url = "http://test.com"
 
         with pytest.raises(Exception, match="Authentication failed: 403"):
@@ -693,8 +682,8 @@ class TestHTTPTransport:
         """Test _handle_response with 500 status (Server Error)."""
         transport = HTTPTransport(agent_config)
         mock_response = AsyncMock()
-        mock_response.status = 500
-        mock_response.text.return_value = "Internal Server Error"
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
         mock_response.url = "http://test.com"
 
         with pytest.raises(Exception, match="Server error 500: Internal Server Error"):
@@ -707,32 +696,30 @@ class TestHTTPTransport:
         """Test _handle_response with other client errors (e.g., 404)."""
         transport = HTTPTransport(agent_config)
         mock_response = AsyncMock()
-        mock_response.status = 404
-        mock_response.text.return_value = "Not Found"
+        mock_response.status_code = 404
+        mock_response.text = "Not Found"
         mock_response.url = "http://test.com"
 
         result = await transport._handle_response(mock_response)
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_close_connector_closed(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+    async def test_close_client_closed(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
-        """Test close method also closes the connector."""
+        """Test close method closes the client."""
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
-        transport._connector = AsyncMock()
+        transport._client = mock_client
 
         await transport.close()
 
-        mock_session.close.assert_called_once()
-        transport._connector.close.assert_called_once()
+        mock_client.aclose.assert_called_once()
 
     def test_get_stats_session_closed(self, agent_config: AgentConfig) -> None:
         """Test get_stats when session is closed."""
         transport = HTTPTransport(agent_config)
-        transport._session = AsyncMock()
-        transport._session.closed = True
+        transport._client = AsyncMock()
+        transport._client.is_closed = True
 
         stats = transport.get_stats()
         assert stats["session_closed"] is True
@@ -740,19 +727,19 @@ class TestHTTPTransport:
     def test_get_stats_session_none(self, agent_config: AgentConfig) -> None:
         """Test get_stats when session is None."""
         transport = HTTPTransport(agent_config)
-        transport._session = None
+        transport._client = None
 
         stats = transport.get_stats()
         assert stats["session_closed"] is True
 
     @pytest.mark.asyncio
     async def test_get_with_retry_rate_limited_fetch_rules(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """Test _get_with_retry rate limiting in fetch_dynamic_rules path."""
         agent_config.retry_attempts = 1
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         # Mock rate limiter to be rate limited on first call, then succeed
         with patch.object(
@@ -762,15 +749,18 @@ class TestHTTPTransport:
                 transport.rate_limiter, "get_retry_after", return_value=0.1
             ) as mock_get_retry_after:
                 with patch("asyncio.sleep") as mock_sleep:
-                    mock_response = await mock_session.get.return_value.__aenter__()
-                    mock_response.status = 200
-                    mock_response.json.return_value = {
-                        "rule_id": "test-rule",
-                        "version": 1,
-                        "timestamp": "2025-01-08T10:00:00Z",
-                        "ip_blacklist": [],
-                        "ttl": 300,
-                    }
+                    mock_response = AsyncMock()
+                    mock_response.status_code = 200
+                    mock_response.json = MagicMock(
+                        return_value={
+                            "rule_id": "test-rule",
+                            "version": 1,
+                            "timestamp": "2025-01-08T10:00:00Z",
+                            "ip_blacklist": [],
+                            "ttl": 300,
+                        }
+                    )
+                    mock_client.get.return_value = mock_response
 
                     rules = await transport.fetch_dynamic_rules()
 
@@ -788,31 +778,31 @@ class TestHTTPTransport:
                     assert rules.rule_id == "test-rule"
 
     @pytest.mark.asyncio
-    async def test_make_request_session_remains_none_after_initialize(
+    async def test_make_request_client_remains_none_after_initialize(
         self, agent_config: AgentConfig
     ) -> None:
-        """Test _make_request when session remains None even after initialize."""
+        """Test _make_request when client remains None even after initialize."""
         transport = HTTPTransport(agent_config)
-        transport._session = None
+        transport._client = None
 
         # Mock initialize to succeed but leave session as None
         async def mock_initialize() -> None:
-            # Simulate initialize succeeding but session somehow ending up None
+            # Simulate initialize succeeding but client somehow ending up None
             pass
 
         with patch.object(transport, "initialize", side_effect=mock_initialize):
-            with pytest.raises(Exception, match="Failed to initialize HTTP session"):
+            with pytest.raises(Exception, match="Failed to initialize HTTP client"):
                 await transport._make_request("POST", "/test", {"key": "value"})
 
     @pytest.mark.asyncio
     async def test_fetch_dynamic_rules_invalid_response_data(
-        self, agent_config: AgentConfig, mock_session: AsyncMock
+        self, agent_config: AgentConfig, mock_client: AsyncMock
     ) -> None:
         """
         Test fetch_dynamic_rules, response data is invalid, causes parsing to fail.
         """
         transport = HTTPTransport(agent_config)
-        transport._session = mock_session
+        transport._client = mock_client
 
         # return invalid data that will cause DynamicRules(**response_data) to fail
         # Using invalid data types that will cause Pydantic validation errors
