@@ -43,7 +43,7 @@ pip install fastapi-guard-agent
 If you need a specific version:
 
 ```bash
-pip install fastapi-guard-agent==0.1.0
+pip install fastapi-guard-agent==0.1.1
 ```
 
 ### Using Poetry
