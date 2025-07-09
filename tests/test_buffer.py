@@ -483,9 +483,9 @@ class TestBufferClearFromRedis:
         mock_redis_handler.keys.return_value = event_keys
         await buffer.initialize_redis(mock_redis_handler)
         await buffer._clear_events_from_redis(clear_count)
-        assert mock_redis_handler.delete_key.call_count == len(expected_deletes)
+        assert mock_redis_handler.delete.call_count == len(expected_deletes)
         for event_id in expected_deletes:
-            mock_redis_handler.delete_key.assert_any_await("agent_events", event_id)
+            mock_redis_handler.delete.assert_any_await("agent_events", event_id)
 
     @pytest.mark.asyncio
     async def test_clear_metrics_from_redis(
@@ -497,10 +497,8 @@ class TestBufferClearFromRedis:
         ]
         await buffer.initialize_redis(mock_redis_handler)
         await buffer._clear_metrics_from_redis(1)
-        assert mock_redis_handler.delete_key.call_count == 1
-        mock_redis_handler.delete_key.assert_awaited_once_with(
-            "agent_metrics", "metric_1"
-        )
+        assert mock_redis_handler.delete.call_count == 1
+        mock_redis_handler.delete.assert_awaited_once_with("agent_metrics", "metric_1")
 
     @pytest.mark.asyncio
     async def test_clear_from_redis_no_handler(self, buffer: EventBuffer) -> None:
@@ -542,11 +540,11 @@ class TestBufferClearFromRedis:
             ["agent_events:event_1"],  # For _clear_redis_buffers events
             ["agent_metrics:metric_1"],  # For _clear_redis_buffers metrics
         ]
-        mock_redis_handler.delete_key.return_value = None
+        mock_redis_handler.delete.return_value = None
         await buffer.initialize_redis(mock_redis_handler)
         await buffer._clear_redis_buffers()
-        mock_redis_handler.delete_key.assert_any_await("agent_events", "event_1")
-        mock_redis_handler.delete_key.assert_any_await("agent_metrics", "metric_1")
+        mock_redis_handler.delete.assert_any_await("agent_events", "event_1")
+        mock_redis_handler.delete.assert_any_await("agent_metrics", "metric_1")
 
     @pytest.mark.asyncio
     async def test_clear_redis_buffers_exception(

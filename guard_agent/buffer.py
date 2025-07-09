@@ -278,7 +278,7 @@ class EventBuffer(BufferProtocol):
                 if i >= count:
                     break
                 key_name = key.split(":")[-1]
-                await self.redis_handler.delete_key("agent_events", key_name)
+                await self.redis_handler.delete("agent_events", key_name)
 
         except Exception as e:
             self.logger.warning(f"Failed to clear events from Redis: {str(e)}")
@@ -299,7 +299,7 @@ class EventBuffer(BufferProtocol):
                 if i >= count:
                     break
                 key_name = key.split(":")[-1]
-                await self.redis_handler.delete_key("agent_metrics", key_name)
+                await self.redis_handler.delete("agent_metrics", key_name)
 
         except Exception as e:
             self.logger.warning(f"Failed to clear metrics from Redis: {str(e)}")
@@ -314,13 +314,13 @@ class EventBuffer(BufferProtocol):
             event_keys = await self.redis_handler.keys("agent_events:*") or []
             for key in event_keys:
                 key_name = key.split(":")[-1]
-                await self.redis_handler.delete_key("agent_events", key_name)
+                await self.redis_handler.delete("agent_events", key_name)
 
             # Clear all metrics
             metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
             for key in metric_keys:
                 key_name = key.split(":")[-1]
-                await self.redis_handler.delete_key("agent_metrics", key_name)
+                await self.redis_handler.delete("agent_metrics", key_name)
 
             self.logger.info("Cleared all Redis buffers")
 

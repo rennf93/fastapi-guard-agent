@@ -33,7 +33,7 @@ def mock_redis_handler() -> AsyncMock:
     mock = AsyncMock()
     mock.get_key = AsyncMock(return_value=None)
     mock.set_key = AsyncMock(return_value=True)
-    mock.delete_key = AsyncMock(return_value=True)
+    mock.delete = AsyncMock(return_value=0)
     mock.keys = AsyncMock(return_value=[])
     mock.initialize = AsyncMock()
     return mock
