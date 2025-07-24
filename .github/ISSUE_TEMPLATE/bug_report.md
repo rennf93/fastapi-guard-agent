@@ -36,7 +36,7 @@ ___
 
 Environment
 ===========
-- FastAPI Guard Agent version: [e.g. 0.1.1]
+- FastAPI Guard Agent version: [e.g. 1.0.0]
 - FastAPI Guard version: [e.g. 3.0.0]
 - Python version: [e.g. 3.11.10]
 - FastAPI version: [e.g. 0.115.0]

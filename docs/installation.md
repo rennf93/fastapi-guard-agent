@@ -50,7 +50,7 @@ pip install fastapi-guard-agent
 Pin to a specific version for reproducible deployments:
 
 ```bash
-pip install fastapi-guard-agent==0.1.1
+pip install fastapi-guard-agent==1.0.0
 ```
 
 ### Modern Python Packaging
@@ -72,7 +72,7 @@ poetry add --group dev fastapi-guard-agent
 Define in `requirements.in`:
 
 ```text
-fastapi-guard-agent>=0.1.0,<1.0.0
+fastapi-guard-agen==1.0.0
 ```
 
 Generate locked requirements:
