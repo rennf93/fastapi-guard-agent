@@ -1,59 +1,59 @@
 Contributing to FastAPI Guard Agent
 ===================================
 
-Thank you for considering contributing to FastAPI Guard Agent! This document outlines the process for contributing to this Python library and helps ensure a smooth collaboration experience.
+We appreciate your interest in contributing to FastAPI Guard Agent. This document provides comprehensive guidelines for participating in the development of this enterprise-grade security telemetry solution, ensuring efficient collaboration and maintaining our high standards of code quality.
 
-. Code of Conduct
-----------------
+Code of Conduct
+---------------
 
-This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to the project maintainers.
+This project maintains strict adherence to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). All contributors are expected to uphold these professional standards. Any violations should be reported directly to the project maintainers for immediate review.
 
 ___
 
-How Can I Contribute?
----------------------
-
-. Reporting Bugs
---------------
-
-Before creating bug reports, please check the issue tracker to avoid duplicates. When you create a bug report, include as many details as possible:
-
-- Use a clear and descriptive title
-- Describe the exact steps to reproduce the problem
-- Provide specific examples (e.g., HTTP requests that trigger the issue)
-- Describe the behavior you observed and why it's problematic
-- Include logs, error messages, and Python version
-- Specify your environment: OS, Python version, FastAPI version, etc.
-
-. Suggesting Enhancements
+Contribution Guidelines
 -----------------------
 
-Enhancement suggestions are tracked as GitHub issues. When creating an enhancement suggestion:
+Reporting Security Vulnerabilities and Bugs
+-------------------------------------------
 
-- Use a clear and descriptive title
-- Provide a detailed description of the proposed functionality
-- Explain why this enhancement would be useful to FastAPI Guard users
-- Include examples of how it would be used if applicable
-- List any relevant references or examples from other libraries
+Prior to submitting bug reports, conduct a thorough search of existing issues to prevent duplicates. When documenting a bug, provide comprehensive details:
 
-. Pull Requests
--------------
+- Utilize precise, descriptive titles that clearly identify the issue
+- Document exact reproduction steps with minimal test cases
+- Include specific examples, including relevant HTTP requests and payloads
+- Articulate observed behavior versus expected behavior with technical precision
+- Provide complete error logs, stack traces, and diagnostic information
+- Detail your execution environment: operating system, Python version, FastAPI version, and all relevant dependencies
 
-- Fill in the required template
-- Follow the Python style guides (PEP 8)
-- Include tests for new features or bug fixes
-- Update documentation for significant changes
-- Ensure the test suite passes
-- Make sure your code lints (mypy, flake8, black)
+Proposing Feature Enhancements
+-------------------------------
 
-. Development Setup
------------------
+Feature proposals are managed through GitHub's issue tracking system. When submitting enhancement requests:
 
-1. Fork and clone the repository
+- Craft concise yet comprehensive titles that encapsulate the feature scope
+- Provide detailed technical specifications for the proposed functionality
+- Articulate the business value and technical benefits for FastAPI Guard's user base
+- Include practical implementation examples and use case scenarios
+- Reference relevant industry standards, competing implementations, or academic research
 
-2. The project uses Docker for development and testing. Make sure you have Docker and Docker Compose installed on your system.
+Pull Request Standards
+----------------------
 
-3. You can use the provided Makefile commands to set up your development environment:
+- Complete all sections of the pull request template comprehensively
+- Maintain strict adherence to PEP 8 and project-specific style conventions
+- Implement comprehensive test coverage for all new functionality and bug fixes
+- Update technical documentation to reflect architectural changes
+- Verify full test suite execution without failures or regressions
+- Ensure static analysis tools (mypy, ruff) report zero violations
+
+Development Environment Configuration
+-------------------------------------
+
+1. Fork the repository and establish a local development clone
+
+2. This project leverages containerization for consistent development environments. Ensure Docker and Docker Compose are properly installed and configured.
+
+3. Utilize the comprehensive Makefile automation for environment initialization:
 
 ```bash
 # Install dependencies using 'uv'
@@ -63,10 +63,10 @@ make install
 make stop
 ```
 
-. Testing
--------
+Testing Infrastructure
+----------------------
 
-The project supports Python 3.10, 3.11, 3.12, and 3.13. Tests are run using Docker containers:
+The project maintains compatibility across Python 3.10, 3.11, 3.12, and 3.13. Our containerized testing infrastructure ensures consistency across environments:
 
 ```bash
 # Run tests with the default Python version (3.10)
@@ -82,14 +82,14 @@ make test-3.11
 make local-test
 ```
 
-. Style Guidelines
-----------------
+Code Quality Standards
+----------------------
 
-This project uses:
-- [Ruff](https://github.com/astral-sh/ruff) for code formatting and linting
-- [mypy](https://mypy.readthedocs.io/) for type checking
+This project enforces rigorous code quality through:
+- [Ruff](https://github.com/astral-sh/ruff) for high-performance code formatting and linting
+- [mypy](https://mypy.readthedocs.io/) for comprehensive static type analysis
 
-Before submitting a PR, make sure your code passes all style checks:
+Prior to pull request submission, validate compliance with all quality standards:
 
 ```bash
 make lint
@@ -103,26 +103,26 @@ make lint-docs
 make fix-docs
 ```
 
-. Documentation
--------------
+Documentation Standards
+-----------------------
 
-The documentation for FastAPI Guard is built with MkDocs. To build and view the documentation locally:
+Technical documentation is generated using MkDocs with Material theme. To build and preview documentation locally:
 
 ```bash
 make serve-docs
 ```
 
-Please update the documentation when making significant changes.
+Comprehensive documentation updates are mandatory for all significant architectural or API modifications.
 
 ___
 
-Versioning
-----------
+Version Management
+------------------
 
-This project follows [Semantic Versioning](https://semver.org/).
+This project strictly adheres to [Semantic Versioning](https://semver.org/) principles.
 
-. Release Process
----------------
+Release Engineering Process
+---------------------------
 
 1. Update version in `pyproject.toml` and `setup.py`
 2. Update `docs/release-notes.md`
@@ -131,9 +131,9 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ___
 
-Questions?
-----------
+Support and Communication
+-------------------------
 
-If you have questions about the development process or need help, feel free to open an issue for discussion.
+For technical inquiries regarding the development process or architectural decisions, please initiate a discussion through the issue tracking system.
 
-Thank you for contributing to FastAPI Guard!
+Your contributions are vital to the continued evolution of FastAPI Guard Agent's security capabilities.

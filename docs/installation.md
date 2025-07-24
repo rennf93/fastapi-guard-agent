@@ -1,119 +1,156 @@
-# Installation
+# Installation Guide
 
-This guide will help you install and set up `fastapi-guard-agent` in your FastAPI application.
+This comprehensive guide provides detailed instructions for deploying FastAPI Guard Agent across various environments and configurations.
 
-## Requirements
+## System Requirements
 
-### Python Version
+### Python Runtime
 
-`fastapi-guard-agent` requires **Python 3.8 or higher**. We recommend using Python 3.9+ for the best experience.
+FastAPI Guard Agent requires **Python 3.10 or higher**. For optimal performance and feature compatibility, Python 3.11+ is recommended.
 
-You can check your Python version with:
+Verify your Python installation:
 
 ```bash
 python --version
 ```
 
-### Dependencies
+### Core Dependencies
 
-The agent has the following core dependencies that will be automatically installed:
+The following dependencies are automatically managed during installation:
 
-- **`fastapi`** - FastAPI framework (any version)
-- **`pydantic`** ≥ 2.0 - Data validation and serialization
-- **`httpx`** - Async HTTP client for transport (FastAPI compatible)
-- **`redis`** ≥ 4.0.0 - Redis client for buffering (optional but recommended)
+#### Required Components
+- **`fastapi-guard`** - Security middleware providing the integration framework
+- **`pydantic`** ≥ 2.0 - Type-safe data validation and serialization
+- **`httpx`** - High-performance async HTTP client with connection pooling
+- **`typing-extensions`** ≥ 4.0 - Enhanced type hints for Python 3.10 compatibility
 
-### Optional Dependencies
-
-- **Redis server** - For persistent event buffering (highly recommended for production)
-- **`uvicorn`** or another ASGI server - To run your FastAPI application
+#### Optional Components
+- **`redis`** ≥ 4.0.0 - Client library for persistent buffering (production recommended)
+- **Redis Server** 6.0+ - External service for high-availability deployments
+- **ASGI Server** - Uvicorn, Hypercorn, or similar for application hosting
 
 ## Installation Methods
 
-### Using pip (Recommended)
+### Standard Installation
 
-Install the latest stable version from PyPI:
+For integrated deployments with FastAPI Guard:
+
+```bash
+pip install fastapi-guard fastapi-guard-agent
+```
+
+For standalone agent deployments:
 
 ```bash
 pip install fastapi-guard-agent
 ```
 
-### Using pip with specific version
+### Version-Specific Installation
 
-If you need a specific version:
+Pin to a specific version for reproducible deployments:
 
 ```bash
 pip install fastapi-guard-agent==0.1.1
 ```
 
-### Using Poetry
+### Modern Python Packaging
 
-If you're using Poetry for dependency management:
+#### Poetry Integration
 
 ```bash
 poetry add fastapi-guard-agent
 ```
 
-### Using pip-tools
+For development dependencies:
 
-Add to your `requirements.in`:
-
-```text
-fastapi-guard-agent
+```bash
+poetry add --group dev fastapi-guard-agent
 ```
 
-Then compile and install:
+#### pip-tools Workflow
+
+Define in `requirements.in`:
+
+```text
+fastapi-guard-agent>=0.1.0,<1.0.0
+```
+
+Generate locked requirements:
 
 ```bash
 pip-compile requirements.in
-pip install -r requirements.txt
+pip-sync requirements.txt
 ```
 
 ### Development Installation
 
-If you want to contribute or install from source:
+For contributors and advanced users requiring source access:
 
 ```bash
 git clone https://github.com/rennf93/fastapi-guard-agent.git
 cd fastapi-guard-agent
-pip install -e .
+pip install -e ".[dev]"
 ```
 
-### Docker Installation
+Install pre-commit hooks for code quality:
 
-You can also use the agent in a Docker environment. Add it to your `Dockerfile`:
+```bash
+pre-commit install
+```
+
+### Container Deployment
+
+#### Production Dockerfile
+
+Optimized multi-stage build for minimal image size:
 
 ```dockerfile
+FROM python:3.11-slim as builder
+
+# Build dependencies
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --user -r requirements.txt fastapi-guard-agent
+
 FROM python:3.11-slim
 
-# Install the agent
-RUN pip install fastapi-guard-agent
+# Copy installed packages
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
 
-# Copy your application
-COPY . /app
+# Application setup
 WORKDIR /app
+COPY . .
 
-# Install your app dependencies
-RUN pip install -r requirements.txt
+# Security: Run as non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-## Verification
+## Installation Verification
 
-After installation, verify that the agent is correctly installed:
+Comprehensive validation ensures proper deployment:
 
-### 1. Import Test
+### 1. Package Import Validation
+
+Verify successful installation through systematic import testing:
 
 ```python
 # test_installation.py
 try:
+    # Validate FastAPI Guard installation
+    from guard import SecurityConfig, SecurityMiddleware
+    print("✅ FastAPI Guard installation verified")
+
+    # Validate Agent module availability
     from guard_agent import __version__
     from guard_agent.client import guard_agent
     from guard_agent.models import AgentConfig
-    print(f"✅ FastAPI Guard Agent {__version__} installed successfully!")
+    print(f"✅ FastAPI Guard Agent {__version__} successfully installed")
 except ImportError as e:
-    print(f"❌ Installation failed: {e}")
+    print(f"❌ Installation validation failed: {e}")
 ```
 
 Run the test:
@@ -122,92 +159,98 @@ Run the test:
 python test_installation.py
 ```
 
-### 2. Basic Configuration Test
+### 2. Configuration Validation Test
+
+Validate proper integration between FastAPI Guard and the telemetry agent:
 
 ```python
 # test_config.py
-from guard_agent.client import guard_agent
-from guard_agent.models import AgentConfig
+from fastapi import FastAPI
+from guard import SecurityConfig, SecurityMiddleware
 
 try:
-    config = AgentConfig(
-        api_key="test-key",
-        project_id="test-project"
+    app = FastAPI()
+
+    # Validate integrated configuration
+    config = SecurityConfig(
+        enable_agent=True,
+        agent_api_key="test-key",
+        agent_project_id="test-project"
     )
-    agent = guard_agent(config)
-    print("✅ Agent configuration successful!")
+    middleware = SecurityMiddleware(app, config=config)
+    print("✅ Security middleware with telemetry pipeline successfully configured")
 except Exception as e:
-    print(f"❌ Configuration failed: {e}")
+    print(f"❌ Configuration validation failed: {e}")
 ```
 
-### 3. Redis Connection Test (Optional)
+### 3. Redis Connectivity Validation (Production Environments)
 
-If you're planning to use Redis for buffering:
+For production deployments utilizing Redis for persistent buffering:
 
 ```python
 # test_redis.py
 import asyncio
 from redis.asyncio import Redis
 
-async def test_redis():
+async def validate_redis_connectivity():
     try:
         redis = Redis.from_url("redis://localhost:6379")
         await redis.ping()
-        print("✅ Redis connection successful!")
+        print("✅ Redis connectivity validated - persistent buffering available")
     except Exception as e:
-        print(f"❌ Redis connection failed: {e}")
+        print(f"❌ Redis connectivity validation failed: {e}")
     finally:
         await redis.close()
 
 if __name__ == "__main__":
-    asyncio.run(test_redis())
+    asyncio.run(validate_redis_connectivity())
 ```
 
 ## Configuration Verification
 
-Create a minimal configuration to ensure everything works:
+Create a minimal application to ensure everything works:
 
 ```python
 # minimal_test.py
-import asyncio
-from guard_agent.client import guard_agent
-from guard_agent.models import AgentConfig
+from fastapi import FastAPI
+from guard import SecurityConfig, SecurityMiddleware
 
-async def test_agent():
-    config = AgentConfig(
-        api_key="your-test-api-key",
-        project_id="your-test-project",
-        endpoint="https://api.fastapi-guard.com"  # or your custom endpoint
-    )
+app = FastAPI()
 
-    agent = guard_agent(config)
+# Configure FastAPI Guard with agent
+config = SecurityConfig(
+    # Basic security
+    enable_rate_limiting=True,
+    rate_limit=100,
 
-    # Test agent lifecycle
-    try:
-        await agent.start()
-        print("✅ Agent started successfully!")
+    # Enable agent
+    enable_agent=True,
+    agent_api_key="your-test-api-key",
+    agent_project_id="your-test-project",
+    agent_endpoint="https://api.fastapi-guard.com"
+)
 
-        # Check agent status
-        status = await agent.get_status()
-        print(f"✅ Agent status: {status.status}")
+# Add middleware - agent starts automatically
+middleware = SecurityMiddleware(app, config=config)
 
-    except Exception as e:
-        print(f"❌ Agent test failed: {e}")
-    finally:
-        await agent.stop()
-        print("✅ Agent stopped successfully!")
+@app.get("/")
+async def root():
+    return {"message": "FastAPI Guard Agent is running!"}
 
-if __name__ == "__main__":
-    asyncio.run(test_agent())
+@app.get("/test")
+async def test():
+    return {"agent_enabled": config.enable_agent}
+
+# Run with: uvicorn minimal_test:app --reload
 ```
 
-## Common Issues and Solutions
+## Troubleshooting Guide
 
-### Import Errors
+### Module Import Failures
 
-**Problem**: `ModuleNotFoundError: No module named 'guard_agent'`
+**Symptom**: `ModuleNotFoundError: No module named 'guard_agent'`
 
-**Solutions**:
+**Resolution Strategies**:
 1. Ensure you're using the correct Python environment:
    ```bash
    which python
@@ -227,11 +270,11 @@ if __name__ == "__main__":
    pip install fastapi-guard-agent
    ```
 
-### Redis Connection Issues
+### Redis Connectivity Issues
 
-**Problem**: `ConnectionError: Error connecting to Redis`
+**Symptom**: `ConnectionError: Error connecting to Redis`
 
-**Solutions**:
+**Resolution Strategies**:
 1. Ensure Redis server is running:
    ```bash
    redis-cli ping
@@ -255,11 +298,11 @@ if __name__ == "__main__":
    redis-server
    ```
 
-### HTTP Transport Issues
+### Network Transport Failures
 
-**Problem**: `httpx.HTTPError` or connection timeouts
+**Symptom**: `httpx.HTTPError` or connection timeout exceptions
 
-**Solutions**:
+**Resolution Strategies**:
 1. Check your API endpoint configuration:
    ```python
    config = AgentConfig(
@@ -275,11 +318,11 @@ if __name__ == "__main__":
 
 3. Check firewall settings and proxy configuration if behind corporate network.
 
-### Permission Issues
+### Installation Permission Errors
 
-**Problem**: `PermissionError` during installation
+**Symptom**: `PermissionError` during package installation
 
-**Solutions**:
+**Resolution Strategies**:
 1. Use `--user` flag for user-level installation:
    ```bash
    pip install --user fastapi-guard-agent
@@ -297,32 +340,20 @@ if __name__ == "__main__":
    sudo pip install fastapi-guard-agent
    ```
 
-## Next Steps
+## Post-Installation Guidance
 
-Once you have successfully installed `fastapi-guard-agent`, you can:
+Following successful installation of `fastapi-guard-agent`, proceed with:
 
-1. **[Get Started](tutorial/getting-started.md)** - Follow our quick start guide
-2. **[Configure the Agent](tutorial/configuration.md)** - Learn about configuration options
-3. **[Integrate with FastAPI Guard](tutorial/integration.md)** - Full integration guide
-4. **[Explore Examples](examples/index.md)** - See real-world usage examples
-
-## Getting Help
-
-If you encounter issues not covered here:
-
-1. Check our [Troubleshooting Guide](guides/troubleshooting.md)
-2. Search existing [GitHub Issues](https://github.com/rennf93/fastapi-guard-agent/issues)
-3. Create a new issue with:
-   - Your Python version (`python --version`)
-   - Package version (`pip show fastapi-guard-agent`)
-   - Error message and full traceback
-   - Your configuration (with sensitive data removed)
+1. **[Getting Started Guide](tutorial/getting-started.md)** - Comprehensive implementation walkthrough
+2. **[Configuration Reference](tutorial/configuration.md)** - Detailed configuration parameter documentation
+3. **[Integration Patterns](tutorial/integration.md)** - Advanced integration architectures
+4. **[Implementation Examples](examples/index.md)** - Production-ready deployment patterns
 
 ## System Requirements Summary
 
 | Component | Requirement |
 |-----------|-------------|
-| Python | 3.8+ (3.9+ recommended) |
+| Python | 3.10+ (3.11+ recommended) |
 | Memory | 64MB+ available RAM |
 | Network | HTTPS outbound access |
 | Storage | 10MB+ disk space |

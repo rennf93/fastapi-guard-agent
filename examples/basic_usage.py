@@ -2,21 +2,20 @@
 Basic usage example for FastAPI Guard Agent.
 
 This example shows how to:
-1. Configure and start the agent
-2. Send events and metrics manually
-3. Integrate with FastAPI applications
+1. Integrate FastAPI Guard Agent with FastAPI Guard (recommended)
+2. Use direct agent API for custom events (advanced)
+3. Monitor agent status and health
 """
 
 import asyncio
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from guard import SecurityConfig, SecurityMiddleware
+from guard.decorators import SecurityDecorator
 
 from guard_agent import (
     AgentConfig,
-    GuardAgentHandler,
     SecurityEvent,
     SecurityMetric,
     get_current_timestamp,
@@ -24,32 +23,16 @@ from guard_agent import (
 )
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Lifespan for FastAPI application."""
-    agent = await get_agent(
-        AgentConfig(
-            api_key="demo-api-key-12345",
-            project_id="fastapi-demo",
-            buffer_size=50,
-            flush_interval=30,
-        )
-    )
-    try:
-        yield
-    finally:
-        await agent.stop()
-
-
-async def get_agent(config: AgentConfig) -> GuardAgentHandler:
-    """Get agent instance."""
-    agent = guard_agent(config)
-    return agent
-
-
 async def basic_agent_usage() -> None:
-    """Example of basic agent usage."""
-    print("=== Basic Agent Usage ===")
+    """Example of direct agent usage (ADVANCED USERS ONLY).
+
+    NOTE: Most users should use the automatic integration with FastAPI Guard
+    shown in create_fastapi_app_with_agent() above. Direct usage is only
+    needed for custom events or when not using FastAPI Guard.
+    """
+    print("\n=== Direct Agent Usage (Advanced) ===")
+    print("NOTE: This is for advanced use cases only!")
+    print("Most users should use the automatic integration with FastAPI Guard.\n")
 
     # Configure the agent
     config = AgentConfig(
@@ -64,153 +47,199 @@ async def basic_agent_usage() -> None:
     agent = guard_agent(config)
 
     try:
-        # Start the agent
+        # Start the agent (only needed for direct usage)
         await agent.start()
-        print("Agent started successfully")
+        print("Agent started manually (for demonstration)")
 
-        # Send some example events
-        events = [
-            SecurityEvent(
-                timestamp=get_current_timestamp(),
-                event_type="ip_banned",
-                ip_address="192.168.1.100",
-                action_taken="banned",
-                reason="Rate limit exceeded",
-                endpoint="/api/login",
-                method="POST",
-            ),
-            SecurityEvent(
-                timestamp=get_current_timestamp(),
-                event_type="suspicious_request",
-                ip_address="10.0.0.5",
-                action_taken="blocked",
-                reason="SQL injection detected",
-                endpoint="/api/users",
-                method="GET",
-                metadata={"pattern": "union select", "severity": "high"},
-            ),
-        ]
+        # Example: Send custom business logic events
+        custom_event = SecurityEvent(
+            timestamp=get_current_timestamp(),
+            event_type="custom_business_rule",
+            ip_address="192.168.1.100",
+            action_taken="logged",
+            reason="Custom validation failed",
+            endpoint="/api/custom",
+            method="POST",
+            metadata={"rule": "business_logic_1", "severity": "medium"},
+        )
 
-        for event in events:
-            await agent.send_event(event)
-            print(f"Sent event: {event.event_type} from {event.ip_address}")
+        await agent.send_event(custom_event)
+        print(f"Sent custom event: {custom_event.event_type}")
 
-        # Send some metrics
-        metrics = [
-            SecurityMetric(
-                timestamp=get_current_timestamp(),
-                metric_type="request_count",
-                value=150.0,
-                endpoint="/api/users",
-                tags={"method": "GET", "status": "200"},
-            ),
-            SecurityMetric(
-                timestamp=get_current_timestamp(),
-                metric_type="response_time",
-                value=45.2,
-                endpoint="/api/login",
-                tags={"method": "POST", "status": "401"},
-            ),
-        ]
+        # Example: Send custom metrics
+        custom_metric = SecurityMetric(
+            timestamp=get_current_timestamp(),
+            metric_type="custom_metric",
+            value=42.0,
+            endpoint="/api/custom",
+            tags={"type": "business_metric", "category": "validation"},
+        )
 
-        for metric in metrics:
-            await agent.send_metric(metric)
-            print(f"Sent metric: {metric.metric_type} = {metric.value}")
+        await agent.send_metric(custom_metric)
+        print(
+            f"Sent custom metric: {custom_metric.metric_type} = {custom_metric.value}"
+        )
 
         # Get agent status
         status = await agent.get_status()
-        print(f"Agent status: {status.status}")
-        print(f"Uptime: {status.uptime:.1f}s")
-        print(f"Events sent: {status.events_sent}")
-
-        # Wait a bit to see auto-flushing in action
-        print("Waiting 10 seconds to see auto-flush...")
-        await asyncio.sleep(10)
-
-        # Get updated stats
-        stats = agent.get_stats()
-        print(f"Final stats: {stats}")
+        print(f"\nDirect agent status: {status.status}")
+        print(f"Events processed: {status.events_processed}")
 
     finally:
-        # Stop the agent
+        # Stop the agent (only needed for direct usage)
         await agent.stop()
-        print("Agent stopped")
+        print("Agent stopped (manual cleanup)")
 
 
 def create_fastapi_app_with_agent() -> FastAPI:
-    """Example of integrating agent with FastAPI application."""
-    print("\n=== FastAPI Integration Example ===")
+    """Example of integrating agent with FastAPI Guard (RECOMMENDED)."""
+    print("\n=== FastAPI Guard + Agent Integration (Recommended) ===")
 
-    app = FastAPI(title="FastAPI Guard Agent Example", lifespan=lifespan)
+    app = FastAPI(title="FastAPI Guard Agent Example")
 
-    # Configure agent
-    agent_config = AgentConfig(
-        api_key="demo-api-key-12345",
-        project_id="fastapi-demo",
-        buffer_size=50,
-        flush_interval=30,
+    # Configure FastAPI Guard with agent enabled
+    config = SecurityConfig(
+        # Basic security settings
+        auto_ban_threshold=5,
+        auto_ban_duration=300,
+        enable_rate_limiting=True,
+        rate_limit=100,
+        rate_limit_window=60,
+
+        # Enable agent for telemetry
+        enable_agent=True,
+        agent_api_key="demo-api-key-12345",
+        agent_project_id="fastapi-demo",
+        agent_endpoint="https://api.fastapi-guard.com",
+
+        # Agent configuration
+        agent_buffer_size=50,
+        agent_flush_interval=30,
+        agent_enable_events=True,
+        agent_enable_metrics=True,
+
+        # Enable dynamic rules from SaaS
+        enable_dynamic_rules=True,
+        dynamic_rule_interval=300,
     )
+
+    # Add security middleware - agent starts automatically
+    middleware = SecurityMiddleware(app, config=config)
+
+    # Create decorator instance for enhanced security
+    guard = SecurityDecorator(config)
+    middleware.set_decorator_handler(guard)
 
     @app.get("/")
     async def root() -> dict[str, str]:
         """Root endpoint."""
-        return {"message": "FastAPI Guard Agent Demo"}
+        return {"message": "FastAPI Guard Agent Demo - Automatic Integration"}
 
-    @app.get("/trigger-event")
-    async def trigger_event() -> dict[str, str]:
-        """Manually trigger a security event."""
+    @app.get("/protected")
+    @guard.rate_limit(requests=5, window=60)
+    async def protected_endpoint() -> dict[str, str]:
+        """Rate limited endpoint - violations automatically sent to agent."""
+        return {"message": "This endpoint is rate limited"}
+
+    @app.get("/admin")
+    @guard.require_ip(whitelist=["127.0.0.1", "10.0.0.0/8"])
+    @guard.rate_limit(requests=2, window=300)
+    async def admin_endpoint() -> dict[str, str]:
+        """Admin endpoint - all security events automatically tracked."""
+        return {"message": "Admin access granted"}
+
+    @app.get("/api/data")
+    @guard.block_countries(["CN", "RU"])
+    @guard.rate_limit(requests=10, window=60)
+    async def api_endpoint() -> dict[str, str]:
+        """API endpoint with country blocking - events sent automatically."""
+        return {"data": "Sensitive information"}
+
+    @app.get("/custom-event")
+    async def trigger_custom_event(request: Request) -> dict[str, str]:
+        """Example of sending custom events through direct agent access."""
+        # Get agent instance (singleton) - only for custom events
+        agent_config = AgentConfig(
+            api_key="demo-api-key-12345",
+            project_id="fastapi-demo",
+        )
         agent = guard_agent(agent_config)
 
+        # Send custom business logic event
         event = SecurityEvent(
             timestamp=get_current_timestamp(),
             event_type="custom_rule_triggered",
-            ip_address="203.0.113.1",
+            ip_address=request.client.host,
             action_taken="logged",
-            reason="Manual test event",
-            endpoint="/trigger-event",
+            reason="Custom business logic event",
+            endpoint="/custom-event",
             method="GET",
+            metadata={"custom_field": "custom_value"}
         )
 
         await agent.send_event(event)
-        return {"message": "Security event sent", "event_type": event.event_type}
+        return {"message": "Custom event sent", "event_type": event.event_type}
 
-    @app.get("/agent-status")
-    async def agent_status() -> dict[str, Any]:
-        """Get current agent status."""
-        agent = guard_agent(agent_config)
-        status = await agent.get_status()
-        stats = agent.get_stats()
+    @app.get("/health")
+    async def health_check() -> dict[str, Any]:
+        """Health check including agent status."""
+        # Agent is managed by FastAPI Guard, but we can check its status
+        agent_config = AgentConfig(
+            api_key="demo-api-key-12345",
+            project_id="fastapi-demo",
+        )
+        agent = guard_agent(agent_config)  # Get singleton instance
 
-        return {
-            "status": status.model_dump(),
-            "stats": stats,
-        }
+        try:
+            status = await agent.get_status()
+            stats = agent.get_stats()
 
-    print("FastAPI app created with agent integration")
+            return {
+                "app": "healthy",
+                "agent": {
+                    "status": status.status,
+                    "uptime": status.uptime,
+                    "events_sent": status.events_sent,
+                    "buffer_size": status.buffer_size,
+                    "transport_stats": stats.get("transport_stats", {})
+                }
+            }
+        except Exception as e:
+            return {
+                "app": "healthy",
+                "agent": {"status": "error", "error": str(e)}
+            }
+
+    print("FastAPI app created with automatic agent integration")
     print("Endpoints:")
-    print("  GET /")
-    print("  GET /trigger-event")
-    print("  GET /agent-status")
+    print("  GET /                - Basic endpoint")
+    print("  GET /protected       - Rate limited (5 req/min)")
+    print("  GET /admin           - IP whitelist + rate limit")
+    print("  GET /api/data        - Country blocking + rate limit")
+    print("  GET /custom-event    - Send custom events")
+    print("  GET /health          - Health check with agent status")
+    print("\nAll security violations are automatically sent to the agent!")
 
     return app
 
 
-async def redis_integration_example() -> None:
-    """Example showing Redis integration."""
-    print("\n=== Redis Integration Example ===")
+async def integrated_app_example() -> None:
+    """Example showing the complete integration with FastAPI Guard."""
+    print("\n=== Complete Integration Example ===")
 
-    config = AgentConfig(
-        api_key="demo-api-key-12345",
-        project_id="redis-demo",
-    )
-
-    guard_agent(config)
-
-    # In a real application, you would pass your actual Redis handler
-    # from fastapi-guard that implements RedisHandlerProtocol
-    print("Redis integration would be initialized like this:")
-    print("await agent.initialize_redis(your_redis_handler)")
-    print("This enables distributed buffering and persistence")
+    print("When using FastAPI Guard with agent enabled:")
+    print("1. Agent starts automatically with SecurityMiddleware")
+    print("2. All security events are collected automatically:")
+    print("   - IP bans and blocks")
+    print("   - Rate limit violations")
+    print("   - Country/region blocks")
+    print("   - Suspicious request patterns")
+    print("   - Authentication failures")
+    print("   - Custom security rules")
+    print("3. Performance metrics are collected")
+    print("4. Dynamic rules are fetched from SaaS")
+    print("5. Redis integration is handled by FastAPI Guard")
+    print("\nNo manual agent management needed!")
 
 
 async def main() -> None:
@@ -218,20 +247,24 @@ async def main() -> None:
     print("FastAPI Guard Agent Examples")
     print("=" * 40)
 
-    # Basic usage example
+    # Show recommended integration first
+    app = create_fastapi_app_with_agent()
+
+    # Show complete integration benefits
+    await integrated_app_example()
+
+    # Basic direct usage example (advanced users)
     await basic_agent_usage()
-
-    # FastAPI integration example (just show the setup)
-    create_fastapi_app_with_agent()
-
-    # Redis integration example
-    await redis_integration_example()
 
     print("\n" + "=" * 40)
     print("Examples completed!")
-    print("\nTo run the FastAPI app:")
-    print("uvicorn basic_usage:app --reload")
+    print("\nTo run the FastAPI app with automatic agent integration:")
+    print("uvicorn examples.basic_usage:app --reload")
+    print("\nThe agent will start automatically and collect all security events!")
 
+
+# Export the app for uvicorn
+app = create_fastapi_app_with_agent()
 
 if __name__ == "__main__":
     # Note: This will try to connect to the demo endpoint which doesn't exist

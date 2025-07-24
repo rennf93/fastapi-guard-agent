@@ -1,23 +1,24 @@
 # API Overview
 
-FastAPI Guard Agent provides a clean, extensible API for collecting and transmitting security events and metrics from your FastAPI Guard implementation to monitoring backends.
+The FastAPI Guard Agent API provides a comprehensive, protocol-driven architecture for enterprise-grade security telemetry. Designed with extensibility and reliability at its core, the API enables seamless integration with diverse monitoring ecosystems while maintaining strict performance guarantees.
 
-## Architecture Overview
+## System Architecture
 
-The agent follows a modular, protocol-based architecture designed for reliability, performance, and extensibility:
+The agent implements a layered architecture optimized for high-throughput telemetry collection with minimal application impact:
 
 ```mermaid
 graph TB
     subgraph "FastAPI Application"
-        FG[FastAPI Guard<br/>Middleware]
+        FG[FastAPI Guard<br/>Security Middleware]
+        SC[SecurityConfig<br/>enable_agent=True]
     end
 
-    subgraph "FastAPI Guard Agent"
-        AH[Agent Handler<br/>🎯 Central coordinator]
-        EB[Event Buffer<br/>📊 Temporary storage]
-        TR[HTTP Transport<br/>🚀 Network layer]
+    subgraph "FastAPI Guard Agent (Auto-initialized)"
+        AH[Agent Handler<br/>Central Orchestrator]
+        EB[Event Buffer<br/>High-Performance Queue]
+        TR[HTTP Transport<br/>Resilient Network Layer]
 
-        subgraph "Protocols"
+        subgraph "Protocol Abstractions"
             BP[Buffer Protocol]
             TP[Transport Protocol]
             RP[Redis Protocol]
@@ -25,11 +26,12 @@ graph TB
         end
     end
 
-    subgraph "Storage & Network"
-        RD[(Redis<br/>💾 Persistence)]
-        BE[Backend Service<br/>☁️ Your monitoring system]
+    subgraph "External Systems"
+        RD[(Redis<br/>Persistent Buffer)]
+        BE[Management Platform<br/>Analytics & Policy Engine]
     end
 
+    SC --> FG
     FG --> AH
     AH --> EB
     EB --> TR
@@ -46,44 +48,61 @@ graph TB
 
 ### 1. Agent Handler (`GuardAgentHandler`)
 
-The central coordinator that manages the entire agent lifecycle.
+The central orchestration component responsible for coordinating all telemetry operations.
 
-**Key Responsibilities:**
-- 🎯 **Lifecycle Management**: Start, stop, and health monitoring
-- 🔄 **Event Processing**: Receives events from FastAPI Guard
-- 📊 **Metric Collection**: Gathers performance and security metrics
-- 🕹️ **Background Tasks**: Manages flushing, status updates, and rule fetching
+**Core Responsibilities:**
+- **Lifecycle Management**: Orchestrates initialization, operation, and graceful shutdown sequences
+- **Event Processing**: Implements high-throughput event ingestion with backpressure handling
+- **Metric Aggregation**: Performs efficient metric collection with configurable sampling rates
+- **Task Coordination**: Manages asynchronous operations including buffer flushing and policy synchronization
 
-**Basic Usage:**
+**Basic Usage (Auto-integrated with FastAPI Guard):**
 ```python
-from guard_agent import GuardAgentHandler
-from guard_agent.models import AgentConfig
+from fastapi import FastAPI
+from guard import SecurityConfig, SecurityMiddleware
 
-# Initialize
-config = AgentConfig(
-    backend_url="https://your-backend.com",
-    api_key="your-api-key"
+# Configure with agent enabled
+config = SecurityConfig(
+    enable_agent=True,
+    agent_api_key="your-api-key",
+    agent_project_id="your-project-id",
+    agent_endpoint="https://api.fastapi-guard.com",
 )
-handler = GuardAgentHandler(config)
+
+app = FastAPI()
+middleware = SecurityMiddleware(app, config=config)
+# Agent starts automatically with middleware
+```
+
+**Direct Usage (Advanced):**
+```python
+from guard_agent import guard_agent, AgentConfig
+
+# Initialize directly
+config = AgentConfig(
+    api_key="your-api-key",
+    project_id="your-project-id",
+)
+agent = guard_agent(config)
 
 # Lifecycle
-await handler.start()
-await handler.stop()
+await agent.start()
+await agent.stop()
 
-# Send data
-await handler.send_event(security_event)
-await handler.send_metric(performance_metric)
+# Send data manually
+await agent.send_event(security_event)
+await agent.send_metric(performance_metric)
 ```
 
 ### 2. Event Buffer (`EventBuffer`)
 
-Intelligent buffering system with persistence and auto-flushing capabilities.
+High-performance buffering subsystem engineered for optimal throughput and reliability.
 
-**Key Features:**
-- 📊 **Deque-based Storage**: Efficient in-memory buffering
-- 💾 **Redis Persistence**: Optional persistent storage
-- ⏰ **Auto-flushing**: Time and size-based triggers
-- 🔒 **Thread Safety**: Async-safe operations
+**Technical Capabilities:**
+- **Lock-Free Architecture**: Utilizes deque-based storage for minimal contention
+- **Persistent Buffering**: Optional Redis integration for durability across restarts
+- **Intelligent Flushing**: Adaptive algorithms balance latency and efficiency
+- **Concurrency Safety**: Full async/await compatibility with thread-safe operations
 
 **Usage Patterns:**
 ```python
@@ -107,13 +126,13 @@ events, metrics = await buffer.flush()
 
 ### 3. HTTP Transport (`HTTPTransport`)
 
-Resilient HTTP client with enterprise-grade reliability features.
+Enterprise-grade network layer implementing industry best practices for reliable data delivery.
 
-**Key Features:**
-- 🔄 **Retry Logic**: Exponential backoff with jitter
-- ⚡ **Circuit Breaker**: Prevents cascade failures
-- 🚦 **Rate Limiting**: Configurable request throttling
-- 📊 **Statistics**: Detailed performance metrics
+**Reliability Features:**
+- **Intelligent Retry**: Exponential backoff with jitter prevents thundering herd
+- **Circuit Breaker**: Automatic failure detection with graceful degradation
+- **Adaptive Rate Limiting**: Dynamic throttling based on backend capacity
+- **Comprehensive Telemetry**: Real-time transport statistics for operational visibility
 
 **Configuration:**
 ```python
@@ -132,24 +151,24 @@ transport = HTTPTransport(
 
 ### 4. Data Models
 
-Type-safe Pydantic models for all data structures.
+Strongly-typed data structures leveraging Pydantic for validation and serialization.
 
-**Core Models:**
-- `AgentConfig`: Agent configuration and settings
-- `SecurityEvent`: Security incidents and violations
-- `SecurityMetric`: Performance and telemetry data
-- `EventBatch`: Batch container for efficient transmission
-- `AgentStatus`: Real-time agent health information
+**Primary Models:**
+- `AgentConfig`: Comprehensive configuration with validation and defaults
+- `SecurityEvent`: Rich security event representation with contextual metadata
+- `SecurityMetric`: Performance metrics with dimensional tagging support
+- `EventBatch`: Optimized batch container for network efficiency
+- `AgentStatus`: Real-time operational telemetry and health indicators
 
 ### 5. Protocol System
 
-Extensible protocol definitions for custom implementations.
+Clean abstraction layer enabling custom implementations while maintaining compatibility.
 
-**Available Protocols:**
-- `AgentHandlerProtocol`: Agent handler interface
-- `BufferProtocol`: Buffer implementation interface
-- `TransportProtocol`: Transport layer interface
-- `RedisHandlerProtocol`: Redis integration interface
+**Protocol Interfaces:**
+- `AgentHandlerProtocol`: Defines agent lifecycle and event handling contracts
+- `BufferProtocol`: Specifies buffering semantics and performance guarantees
+- `TransportProtocol`: Establishes network transport requirements and capabilities
+- `RedisHandlerProtocol`: Standardizes persistent storage integration patterns
 
 ## API Reference by Module
 
@@ -282,58 +301,62 @@ class SecurityMetric(BaseModel):
     # ... additional fields
 ```
 
-## Common Usage Patterns
+## Implementation Patterns
 
-### Pattern 1: Basic Integration
+### Pattern 1: Standard Deployment
 
 ```python
 from fastapi import FastAPI
-from guard import SecurityMiddleware
-from guard_agent import GuardAgentHandler
-from guard_agent.models import AgentConfig
+from guard import SecurityConfig, SecurityMiddleware
 
 app = FastAPI()
 
-# Configure agent
-config = AgentConfig(
-    backend_url="https://your-backend.com",
-    api_key="your-api-key"
+# Configure FastAPI Guard with agent
+config = SecurityConfig(
+    # Enable agent
+    enable_agent=True,
+    agent_api_key="your-api-key",
+    agent_project_id="your-project-id",
+
+    # Security settings
+    enable_rate_limiting=True,
+    enable_ip_banning=True,
+    enable_penetration_detection=True,
 )
-agent = GuardAgentHandler(config)
 
-# Add to middleware
-middleware_config = SecurityMiddleware.Config(
-    agent_handler=agent
-)
-app.add_middleware(SecurityMiddleware, config=middleware_config)
-
-@app.on_event("startup")
-async def startup():
-    await agent.start()
-
-@app.on_event("shutdown")
-async def shutdown():
-    await agent.stop()
+# Add middleware - agent starts automatically
+middleware = SecurityMiddleware(app, config=config)
 ```
 
-### Pattern 2: Custom Event Processing
+### Pattern 2: Custom Event Integration
 
 ```python
-from guard_agent.models import SecurityEvent, EventType
+from guard_agent import guard_agent, AgentConfig, SecurityEvent
+from guard_agent.utils import get_current_timestamp
+
+# Get agent instance
+config = AgentConfig(
+    api_key="your-api-key",
+    project_id="your-project-id",
+)
+agent = guard_agent(config)
 
 async def custom_security_check(request):
     """Custom security validation with event reporting."""
 
-    # Your custom logic
     if is_suspicious(request):
         # Create custom event
         event = SecurityEvent(
-            event_type=EventType.CUSTOM,
-            source_ip=get_client_ip(request),
-            description="Custom security check failed",
+            timestamp=get_current_timestamp(),
+            event_type="custom_rule_triggered",
+            ip_address=request.client.host,
+            action_taken="blocked",
+            reason="Custom security check failed",
+            endpoint=str(request.url.path),
+            method=request.method,
             metadata={
                 "check_type": "business_logic",
-                "details": get_check_details()
+                "severity": "high"
             }
         )
 
@@ -348,8 +371,15 @@ async def custom_security_check(request):
 ### Pattern 3: Performance Monitoring
 
 ```python
-from guard_agent.models import SecurityMetric, MetricType
+from guard_agent import guard_agent, SecurityMetric
+from guard_agent.utils import get_current_timestamp
 import time
+
+# Get agent instance (singleton)
+agent = guard_agent(AgentConfig(
+    api_key="your-api-key",
+    project_id="your-project-id",
+))
 
 async def monitor_endpoint_performance():
     """Monitor endpoint performance and send metrics."""
@@ -362,9 +392,11 @@ async def monitor_endpoint_performance():
 
         # Success metric
         await agent.send_metric(SecurityMetric(
-            metric_type=MetricType.RESPONSE_TIME,
+            timestamp=get_current_timestamp(),
+            metric_type="response_time",
             value=time.time() - start_time,
-            metadata={"status": "success"}
+            endpoint="/api/process",
+            tags={"status": "success"}
         ))
 
         return result
@@ -372,9 +404,11 @@ async def monitor_endpoint_performance():
     except Exception as e:
         # Error metric
         await agent.send_metric(SecurityMetric(
-            metric_type=MetricType.ERROR_COUNT,
-            value=1,
-            metadata={"error": str(e)}
+            timestamp=get_current_timestamp(),
+            metric_type="error_rate",
+            value=1.0,
+            endpoint="/api/process",
+            tags={"error": str(type(e).__name__)}
         ))
         raise
 ```
@@ -400,11 +434,11 @@ async def health_check():
     }
 ```
 
-## Error Handling
+## Reliability Patterns
 
 ### Graceful Degradation
 
-The agent is designed to fail gracefully without affecting your application:
+The agent implements comprehensive failure isolation to protect application availability:
 
 ```python
 try:
@@ -415,69 +449,56 @@ except Exception as e:
     # Application continues normally
 ```
 
-### Circuit Breaker Pattern
+### Circuit Breaker Implementation
 
-The HTTP transport includes a circuit breaker to prevent cascade failures:
+Advanced failure detection with automatic recovery mechanisms:
 
 ```python
-# Circuit breaker states:
-# - CLOSED: Normal operation
-# - OPEN: Failing fast, not attempting requests
-# - HALF_OPEN: Testing if service is back
+# Circuit breaker state machine:
+# - CLOSED: Normal operation with request forwarding
+# - OPEN: Fast-fail mode preventing backend overload
+# - HALF_OPEN: Controlled recovery testing with limited traffic
 ```
 
 ### Retry Strategies
 
-Built-in retry logic with exponential backoff:
+Sophisticated retry algorithms optimize for both reliability and backend protection:
 
 ```python
-# Retry configuration
-max_retries: 3
-backoff_factor: 2.0  # 1s, 2s, 4s delays
-jitter: True  # Add randomness to prevent thundering herd
+# Adaptive retry configuration:
+max_retries: 3                    # Configurable retry limit
+backoff_factor: 2.0              # Exponential growth factor
+jitter: True                     # Randomization prevents synchronized retries
+max_delay: 60                    # Caps maximum retry delay
 ```
 
-## Performance Considerations
+## Performance Engineering
 
-### Memory Usage
+### Memory Optimization
 
-- **Buffer Size**: Configure based on your traffic volume
-- **Flush Frequency**: Balance between real-time data and efficiency
-- **Redis Usage**: Optional for high-volume scenarios
+Strategic memory management for various deployment scales:
 
-### Network Efficiency
+- **Buffer Sizing**: Dynamic sizing based on traffic patterns and memory constraints
+- **Flush Strategies**: Adaptive algorithms balance latency requirements with efficiency
+- **Persistent Buffering**: Redis integration for memory-constrained environments
 
-- **Batching**: Events are sent in batches to reduce overhead
-- **Compression**: HTTP transport supports gzip compression
-- **Keep-Alive**: Connection pooling for better performance
+### Network Optimization
 
-### Resource Management
+Advanced techniques minimize bandwidth and latency:
+
+- **Intelligent Batching**: Adaptive batch sizes based on network conditions
+- **Compression**: Automatic gzip compression for payload optimization
+- **Connection Management**: HTTP/2 multiplexing with connection pooling
+
+### Deployment Profiles
 
 ```python
-# Example configuration for different scales
-# Small application
-config = AgentConfig(buffer_size=100, flush_interval=30)
+# Microservice deployment (low memory, high frequency)
+config = AgentConfig(buffer_size=100, flush_interval=10)
 
-# Medium application
-config = AgentConfig(buffer_size=1000, flush_interval=60)
+# Standard API service (balanced profile)
+config = AgentConfig(buffer_size=1000, flush_interval=30)
 
-# High-volume application
-config = AgentConfig(buffer_size=5000, flush_interval=120)
+# High-throughput gateway (optimized for volume)
+config = AgentConfig(buffer_size=10000, flush_interval=60)
 ```
-
-## Next Steps
-
-- 📖 **[Agent Handler API](agent-handler.md)** - Detailed handler documentation
-- 📊 **[Event Buffer API](event-buffer.md)** - Buffer management details
-- 🚀 **[Transport API](transport.md)** - HTTP transport configuration
-- 🏗️ **[Models API](models.md)** - Complete data model reference
-- 🔌 **[Protocols API](protocols.md)** - Extension interfaces
-- 🛠️ **[Utilities API](utilities.md)** - Helper functions and tools
-
-## Support
-
-For detailed implementation examples and advanced patterns, see:
-
-- 📚 **[Examples](../examples/index.md)** - Practical implementation examples
-- 📖 **[Integration Guide](../tutorial/integration.md)** - Advanced integration patterns
-- 🔧 **[Troubleshooting](../guides/troubleshooting.md)** - Common issues and solutions

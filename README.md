@@ -7,7 +7,7 @@
 ---
 
 <p align="center">
-    <strong>fastapi-guard-agent is a reporting agent for FastAPI Guard. It collects and sends metrics and events from FastAPI Guard to your SaaS backend.</strong>
+    <strong>FastAPI Guard Agent is an enterprise-grade telemetry and monitoring solution that seamlessly integrates with FastAPI Guard to provide centralized security intelligence. The agent automatically collects security events, performance metrics, and enables real-time security policy updates through a cloud-based management platform.</strong>
 </p>
 
 <p align="center">
@@ -60,16 +60,16 @@ Documentation
 
 ---
 
-Features
---------
+Key Features
+------------
 
--   **Seamless Integration**: Works out-of-the-box with `fastapi-guard` to collect security events and metrics.
--   **Asynchronous by Design**: Built on `asyncio` to ensure non-blocking operations and high performance.
--   **Resilient Data Transport**: Features a robust HTTP transport layer with automatic retries, exponential backoff, and a circuit breaker pattern for reliable data delivery.
--   **Efficient Buffering**: Events and metrics are buffered in memory and can be persisted to Redis for durability, preventing data loss on application restarts.
--   **Dynamic Configuration**: Can fetch dynamic security rules from the FastAPI Guard SaaS backend, allowing you to update security policies on the fly without redeploying your application.
--   **Extensible**: Uses a protocol-based design, allowing for custom implementations of components like the transport layer or Redis handler.
--   **Comprehensive Telemetry**: Collects detailed `SecurityEvent` and `SecurityMetric` data, providing insights into your application's security posture and performance.
+-   **Automatic Integration**: Seamlessly integrates with FastAPI Guard through a unified configuration interface, requiring minimal setup for comprehensive security monitoring.
+-   **High-Performance Architecture**: Built on asynchronous I/O principles to ensure zero performance impact on your application while maintaining real-time data collection capabilities.
+-   **Enterprise-Grade Reliability**: Implements industry-standard resilience patterns including circuit breakers, exponential backoff with jitter, and intelligent retry mechanisms to guarantee data delivery.
+-   **Intelligent Data Management**: Features multi-tier buffering with in-memory and optional Redis persistence, ensuring zero data loss during network interruptions or application restarts.
+-   **Real-Time Security Updates**: Supports dynamic security policy updates from the centralized management platform, enabling immediate threat response without service interruption.
+-   **Extensible Architecture**: Designed with protocol-based abstractions, allowing seamless integration with custom transport layers, storage backends, and monitoring systems.
+-   **Comprehensive Security Intelligence**: Captures granular security events and performance metrics, providing actionable insights for security operations and compliance requirements.
 
 ---
 
@@ -84,95 +84,64 @@ pip install fastapi-guard-agent
 
 ---
 
-Usage
------------
+Getting Started
+---------------
 
-Basic Setup
------------
+Basic Integration
+-----------------
 
-Here's a quick example of how to integrate `fastapi-guard-agent` into a FastAPI application.
-
-First, you need to configure the agent. The agent is a singleton, and you can initialize it in your application's startup event.
+The FastAPI Guard Agent is designed for effortless integration with your existing FastAPI Guard security setup. The following example demonstrates the recommended configuration approach:
 
 ```python
-# main.py
-import asyncio
-from fastapi import FastAPI, Request
-from fastapi_guard.fastapi_guard import Guard
-from guard_agent.client import guard_agent
-from guard_agent.models import AgentConfig, SecurityEvent
-from guard_agent.utils import get_current_timestamp
+from fastapi import FastAPI
+from guard import SecurityConfig, SecurityMiddleware
+
+# Configure FastAPI Guard with built-in agent support
+config = SecurityConfig(
+    # Basic security settings
+    auto_ban_threshold=5,
+    auto_ban_duration=300,
+    
+    # Enable agent for telemetry
+    enable_agent=True,
+    agent_api_key="YOUR_API_KEY",
+    agent_project_id="YOUR_PROJECT_ID",
+    agent_endpoint="https://api.fastapi-guard.com",
+    
+    # Agent configuration
+    agent_buffer_size=100,
+    agent_flush_interval=30,
+    agent_enable_events=True,
+    agent_enable_metrics=True,
+    
+    # Enable dynamic rules from SaaS
+    enable_dynamic_rules=True,
+    dynamic_rule_interval=300,
+)
 
 app = FastAPI()
 
-# 1. Configure the Guard Agent
-agent_config = AgentConfig(
-    api_key="YOUR_API_KEY",
-    project_id="YOUR_PROJECT_ID",
-    # Optional: fine-tune buffering and other settings
-    buffer_size=500,
-    flush_interval=60,
-)
-agent = guard_agent(agent_config)
+# Add security middleware - events are sent automatically
+middleware = SecurityMiddleware(app, config=config)
 
-# 2. Define a custom handler to send data to the agent
-class AgentSecurityEventHandler:
-    async def handle(self, request: Request, exc: Exception):
-        # This is a simplified example.
-        # You would create more specific events based on the exception.
-        event = SecurityEvent(
-            timestamp=get_current_timestamp(),
-            event_type="suspicious_request",
-            ip_address=request.client.host,
-            endpoint=request.url.path,
-            method=request.method,
-            action_taken="log",
-            reason=str(exc),
-        )
-        await agent.send_event(event)
-        # You can also re-raise the exception or return a response
-        # raise exc
-
-# 3. Configure fastapi-guard to use your handler
-guard = Guard(handlers={"suspicious_request": AgentSecurityEventHandler()})
-
-# 4. Use the guard in your endpoints
 @app.get("/")
-@guard.protect("suspicious_request")
 async def root():
     return {"message": "Hello World"}
-
-# 5. Start and stop the agent with FastAPI's lifespan events
-@app.on_event("startup")
-async def startup_event():
-    # Optional: If you use Redis for buffer persistence
-    # from redis.asyncio import Redis
-    # from fastapi_guard.redis_handler import RedisHandler
-    # redis_handler = RedisHandler(redis=Redis.from_url("redis://localhost"))
-    # await agent.initialize_redis(redis_handler)
-    await agent.start()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await agent.stop()
-
 ```
 
-In this example:
-1.  We create an `AgentConfig` with our credentials.
-2.  We create a simple handler that constructs a `SecurityEvent` and sends it to the agent using `agent.send_event()`.
-3.  We tell `fastapi-guard` to use this handler for a custom protection key.
-4.  We use `@guard.protect()` on an endpoint.
-5.  We use FastAPI's `startup` and `shutdown` events to manage the agent's lifecycle.
-
-Now, when a request is made to the `/` endpoint, `fastapi-guard` will invoke our handler, which in turn sends a security event to the agent. The agent will buffer it and send it to the backend.
+With this configuration, the agent automatically:
+- Captures all security violations including IP bans, rate limit breaches, and suspicious request patterns
+- Collects performance telemetry for security operations monitoring
+- Synchronizes security policies from the centralized management platform
+- Implements intelligent buffering for optimal network utilization
+- Provides fault-tolerant operation with automatic recovery mechanisms
 
 ---
 
-Detailed Configuration Options
-------------------------------
+Advanced Configuration
+----------------------
 
-The `fastapi-guard-agent` is configured using the `AgentConfig` pydantic model. You create an instance of this class and pass it to the `guard_agent` factory function to initialize the agent.
+For advanced use cases requiring direct agent control, the FastAPI Guard Agent can be configured using the `AgentConfig` model. This approach is typically used for custom event handling or standalone deployments:
 
 ```python
 from guard_agent.client import guard_agent
@@ -186,31 +155,29 @@ config = AgentConfig(
 agent = guard_agent(config)
 ```
 
-### `AgentConfig` Attributes
+### Configuration Parameters
 
--   **`api_key: str`**: **Required**. Your API key for the FastAPI Guard SaaS platform.
--   **`endpoint: str`**: The API endpoint for the SaaS platform.
-    -   Default: `https://api.fastapi-guard.com`
--   **`project_id: str | None`**: Your project ID. This is used to associate data with the correct project in the backend.
-    -   Default: `None`
--   **`buffer_size: int`**: The maximum number of events and metrics to hold in the in-memory buffer before they are flushed.
-    -   Default: `100`
--   **`flush_interval: int`**: The interval in seconds at which the buffer is automatically flushed, sending its contents to the backend.
-    -   Default: `30`
--   **`enable_metrics: bool`**: A global switch to enable or disable sending all performance metrics.
-    -   Default: `True`
--   **`enable_events: bool`**: A global switch to enable or disable sending all security events.
-    -   Default: `True`
--   **`retry_attempts: int`**: The number of times the agent will try to resend data if a request fails.
-    -   Default: `3`
--   **`timeout: int`**: The total timeout in seconds for a single HTTP request to the backend.
-    -   Default: `30`
--   **`backoff_factor: float`**: The factor used to calculate the delay between retry attempts (exponential backoff). The delay is calculated as `backoff_factor * (2 ** (attempt - 1))`.
-    -   Default: `1.0`
--   **`sensitive_headers: list[str]`**: A list of HTTP header names (case-insensitive) that will be redacted (replaced with `[REDACTED]`) before being sent.
-    -   Default: `["authorization", "cookie", "x-api-key"]`
--   **`max_payload_size: int`**: The maximum size in bytes for a request or response payload that is included in a security event. Payloads larger than this will be truncated.
-    -   Default: `1024`
+#### Authentication & Identification
+-   **`api_key: str`** (Required): Authentication key for the FastAPI Guard management platform
+-   **`project_id: str | None`**: Unique project identifier for data segregation and multi-tenancy support
+
+#### Network Configuration
+-   **`endpoint: str`**: Management platform API endpoint (Default: `https://api.fastapi-guard.com`)
+-   **`timeout: int`**: HTTP request timeout in seconds (Default: `30`)
+-   **`retry_attempts: int`**: Maximum retry attempts for failed requests (Default: `3`)
+-   **`backoff_factor: float`**: Exponential backoff multiplier for retry delays (Default: `1.0`)
+
+#### Data Management
+-   **`buffer_size: int`**: Maximum events in memory buffer before automatic flush (Default: `100`)
+-   **`flush_interval: int`**: Automatic buffer flush interval in seconds (Default: `30`)
+-   **`max_payload_size: int`**: Maximum payload size in bytes before truncation (Default: `1024`)
+
+#### Feature Control
+-   **`enable_metrics: bool`**: Enable performance metrics collection (Default: `True`)
+-   **`enable_events: bool`**: Enable security event collection (Default: `True`)
+
+#### Security & Privacy
+-   **`sensitive_headers: list[str]`**: HTTP headers to redact from collected data (Default: `["authorization", "cookie", "x-api-key"]`)
 
 ---
 
