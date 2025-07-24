@@ -105,19 +105,16 @@ def create_fastapi_app_with_agent() -> FastAPI:
         enable_rate_limiting=True,
         rate_limit=100,
         rate_limit_window=60,
-
         # Enable agent for telemetry
         enable_agent=True,
         agent_api_key="demo-api-key-12345",
         agent_project_id="fastapi-demo",
         agent_endpoint="https://api.fastapi-guard.com",
-
         # Agent configuration
         agent_buffer_size=50,
         agent_flush_interval=30,
         agent_enable_events=True,
         agent_enable_metrics=True,
-
         # Enable dynamic rules from SaaS
         enable_dynamic_rules=True,
         dynamic_rule_interval=300,
@@ -169,12 +166,12 @@ def create_fastapi_app_with_agent() -> FastAPI:
         event = SecurityEvent(
             timestamp=get_current_timestamp(),
             event_type="custom_rule_triggered",
-            ip_address=request.client.host,
+            ip_address=request.client.host if request.client else None,
             action_taken="logged",
             reason="Custom business logic event",
             endpoint="/custom-event",
             method="GET",
-            metadata={"custom_field": "custom_value"}
+            metadata={"custom_field": "custom_value"},
         )
 
         await agent.send_event(event)
@@ -201,14 +198,11 @@ def create_fastapi_app_with_agent() -> FastAPI:
                     "uptime": status.uptime,
                     "events_sent": status.events_sent,
                     "buffer_size": status.buffer_size,
-                    "transport_stats": stats.get("transport_stats", {})
-                }
+                    "transport_stats": stats.get("transport_stats", {}),
+                },
             }
         except Exception as e:
-            return {
-                "app": "healthy",
-                "agent": {"status": "error", "error": str(e)}
-            }
+            return {"app": "healthy", "agent": {"status": "error", "error": str(e)}}
 
     print("FastAPI app created with automatic agent integration")
     print("Endpoints:")
@@ -248,7 +242,7 @@ async def main() -> None:
     print("=" * 40)
 
     # Show recommended integration first
-    app = create_fastapi_app_with_agent()
+    app = create_fastapi_app_with_agent()  # noqa: F841
 
     # Show complete integration benefits
     await integrated_app_example()
