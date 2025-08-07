@@ -20,6 +20,13 @@ lock:
 	@uv lock
 	@find . | grep -E "(__pycache__|\\.pyc|\\.pyo|\\.pytest_cache|\\.ruff_cache|\\.mypy_cache)" | xargs rm -rf
 
+# Upgrade dependencies
+.PHONY: upgrade
+upgrade:
+	@uv lock --upgrade
+	@uv sync --all-extras
+	@find . | grep -E "(__pycache__|\\.pyc|\\.pyo|\\.pytest_cache|\\.ruff_cache|\\.mypy_cache)" | xargs rm -rf
+
 # Stop
 .PHONY: stop
 stop:

@@ -25,7 +25,7 @@ The following dependencies are automatically managed during installation:
 - **`typing-extensions`** ≥ 4.0 - Enhanced type hints for Python 3.10 compatibility
 
 #### Optional Components
-- **`redis`** ≥ 4.0.0 - Client library for persistent buffering (production recommended)
+- **`redis`** ≥ 6.0.0 - Client library for persistent buffering (production recommended)
 - **Redis Server** 6.0+ - External service for high-availability deployments
 - **ASGI Server** - Uvicorn, Hypercorn, or similar for application hosting
 
@@ -50,7 +50,7 @@ pip install fastapi-guard-agent
 Pin to a specific version for reproducible deployments:
 
 ```bash
-pip install fastapi-guard-agent==1.0.0
+pip install fastapi-guard-agent==1.0.1
 ```
 
 ### Modern Python Packaging
@@ -72,7 +72,7 @@ poetry add --group dev fastapi-guard-agent
 Define in `requirements.in`:
 
 ```text
-fastapi-guard-agen==1.0.0
+fastapi-guard-agen==1.0.1
 ```
 
 Generate locked requirements:

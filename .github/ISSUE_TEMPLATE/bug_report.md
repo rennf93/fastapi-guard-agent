@@ -36,8 +36,8 @@ ___
 
 Environment
 ===========
-- FastAPI Guard Agent version: [e.g. 1.0.0]
-- FastAPI Guard version: [e.g. 3.0.0]
+- FastAPI Guard Agent version: [e.g. 1.0.1]
+- FastAPI Guard version: [e.g. 4.0.2]
 - Python version: [e.g. 3.11.10]
 - FastAPI version: [e.g. 0.115.0]
 - Redis version: [e.g. 7.0.12]

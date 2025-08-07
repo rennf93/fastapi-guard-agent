@@ -58,7 +58,7 @@ class HTTPTransport(TransportProtocol):
         try:
             # Setup headers
             headers = {
-                "User-Agent": "FastAPI-Guard-Agent/1.0.0",
+                "User-Agent": "FastAPI-Guard-Agent/1.0.1",
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.config.api_key}",
             }
@@ -294,7 +294,7 @@ class HTTPTransport(TransportProtocol):
                     return json_data
                 else:
                     # If JSON response is not a dict, treat as success
-                    return True  # TODO: Missing coverage.
+                    return True
             except Exception:
                 return True  # Success for non-JSON responses
 

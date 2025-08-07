@@ -71,7 +71,7 @@ async def safe_json_deserialize(json_str: str) -> dict[str, Any] | None:
         result = json.loads(json_str)
         if isinstance(result, dict):
             return result
-        return None  # TODO: Missing coverage.
+        return None
     except (TypeError, ValueError, json.JSONDecodeError) as e:
         logging.warning(f"Failed to deserialize JSON: {str(e)}")
         return None

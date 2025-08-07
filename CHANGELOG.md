@@ -3,6 +3,15 @@ Release Notes
 
 ___
 
+v1.0.1 (2025-08-07)
+-------------------
+
+Enhancements (v1.0.1)
+------------
+- Added path_excluded event type.
+
+___
+
 v1.0.0 (2025-07-24)
 -------------------
 

@@ -81,6 +81,7 @@ class SecurityEvent(BaseModel):
         "redis_error",
         "dynamic_rule_applied",
         "dynamic_rule_updated",
+        "path_excluded",
         "pattern_detected",
         "pattern_added",
         "pattern_removed",
