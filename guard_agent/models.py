@@ -75,8 +75,13 @@ class SecurityEvent(BaseModel):
         "behavioral_violation",
         "user_agent_blocked",
         "custom_rule_triggered",
+        "custom_request_check",
         "decorator_violation",
+        "decoding_error",
+        "detection_engine_callback_error",
         "geo_lookup_failed",
+        "https_enforced",
+        "pattern_anomaly_slow_execution",
         "redis_connection",
         "redis_error",
         "dynamic_rule_applied",
@@ -94,6 +99,8 @@ class SecurityEvent(BaseModel):
         "security_bypass",
         "config_violation",
         "protocol_violation",
+        "security_headers_applied",
+        "csp_violation",
     ]
     ip_address: str
     country: str | None = None
