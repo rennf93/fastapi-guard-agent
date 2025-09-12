@@ -74,7 +74,6 @@ class SecurityEvent(BaseModel):
         "penetration_attempt",
         "behavioral_violation",
         "user_agent_blocked",
-        "custom_rule_triggered",
         "custom_request_check",
         "decorator_violation",
         "decoding_error",
@@ -97,8 +96,6 @@ class SecurityEvent(BaseModel):
         "emergency_mode_block",
         "dynamic_rule_violation",
         "security_bypass",
-        "config_violation",
-        "protocol_violation",
         "security_headers_applied",
         "csp_violation",
     ]
