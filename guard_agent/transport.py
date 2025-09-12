@@ -58,7 +58,7 @@ class HTTPTransport(TransportProtocol):
         try:
             # Setup headers
             headers = {
-                "User-Agent": "FastAPI-Guard-Agent/1.0.1",
+                "User-Agent": "FastAPI-Guard-Agent/1.0.2",
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.config.api_key}",
             }

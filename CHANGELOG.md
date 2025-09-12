@@ -3,6 +3,15 @@ Release Notes
 
 ___
 
+v1.0.2 (2025-09-12)
+-------------------
+
+Enhancements (v1.0.2)
+------------
+- Added dynamic rule updated event type.
+
+___
+
 v1.0.1 (2025-08-07)
 -------------------
 
