@@ -42,6 +42,12 @@ class AgentConfig(BaseModel):
         default=1024, description="Maximum payload size to include in events (bytes)"
     )
 
+    # Encryption
+    project_encryption_key: str | None = Field(
+        default=None,
+        description="Project-specific encryption key for secure telemetry transmission",
+    )
+
     @field_validator("endpoint")  # type: ignore
     @classmethod
     def validate_endpoint(cls, v: str) -> str:
