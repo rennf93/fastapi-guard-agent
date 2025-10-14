@@ -1,6 +1,6 @@
 [project]
 name = "fastapi_guard_agent"
-version = "1.0.2"
+version = "1.1.0"
 description = "Telemetry and monitoring agent for FastAPI Guard security middleware"
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
@@ -23,6 +23,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 dependencies = [
+    "cryptography",
     "httpx",
     "fastapi",
     "fastapi-guard",
@@ -119,6 +120,10 @@ follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "redis.*"
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "cryptography.*"
 follow_imports = "skip"
 
 [tool.pymarkdown.plugins.md007]

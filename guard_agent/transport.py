@@ -4,6 +4,7 @@ from typing import Any
 
 import httpx
 
+from guard_agent.encryption import EncryptionError, PayloadEncryptor, create_encryptor
 from guard_agent.models import (
     AgentConfig,
     AgentStatus,
@@ -36,6 +37,11 @@ class HTTPTransport(TransportProtocol):
         # HTTP client management
         self._client: httpx.AsyncClient | None = None
 
+        # Encryption support
+        self._encryptor: PayloadEncryptor | None = None
+        self._encryption_enabled = False
+        self._init_encryption()
+
         # Reliability features
         self.circuit_breaker = CircuitBreaker(
             failure_threshold=5, recovery_timeout=60.0
@@ -50,6 +56,27 @@ class HTTPTransport(TransportProtocol):
         self.requests_failed = 0
         self.bytes_sent = 0
 
+    def _init_encryption(self) -> None:
+        """Initialize encryption if configured."""
+        if not self.config.project_encryption_key:
+            self.logger.info("Encryption not configured - using unencrypted transport")
+            return
+
+        try:
+            self._encryptor = create_encryptor(self.config.project_encryption_key)
+            if self._encryptor and self._encryptor.verify_key():
+                self._encryption_enabled = True
+                self.logger.info("Encryption enabled - using encrypted endpoint")
+            else:
+                self.logger.warning(
+                    "Invalid encryption key - falling back to unencrypted"
+                )
+        except EncryptionError as e:
+            self.logger.warning(
+                f"Encryption setup failed: {e} - using unencrypted transport"
+            )
+            self._encryption_enabled = False
+
     async def initialize(self) -> None:
         """Initialize HTTP client."""
         if self._client and not self._client.is_closed:
@@ -58,7 +85,7 @@ class HTTPTransport(TransportProtocol):
         try:
             # Setup headers
             headers = {
-                "User-Agent": "FastAPI-Guard-Agent/1.0.2",
+                "User-Agent": "FastAPI-Guard-Agent/1.1.0",
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.config.api_key}",
             }
@@ -245,7 +272,7 @@ class HTTPTransport(TransportProtocol):
     async def _make_request(
         self, method: str, endpoint: str, data: dict[str, Any] | None
     ) -> dict[str, Any] | bool:
-        """Make HTTP request with proper error handling."""
+        """Make HTTP request with proper error handling and optional encryption."""
         if not self._client:
             await self.initialize()
 
@@ -256,12 +283,58 @@ class HTTPTransport(TransportProtocol):
 
         try:
             if method == "POST" and data:
-                # Serialize data
-                json_data = await safe_json_serialize(data)
-                self.bytes_sent += len(json_data.encode("utf-8"))
+                # Check if this is an events or
+                # metrics endpoint and encryption is enabled
+                if self._encryption_enabled and endpoint in [
+                    "/api/v1/events",
+                    "/api/v1/metrics",
+                ]:
+                    if not self._encryptor:
+                        raise EncryptionError("Encryptor not initialized")
 
-                response = await self._client.post(url, content=json_data)
-                return await self._handle_response(response)
+                    # Extract events/metrics for encryption and serialize to dicts
+                    payload_to_encrypt = {
+                        "events": [
+                            event.model_dump(mode="json")
+                            if hasattr(event, "model_dump")
+                            else event
+                            for event in data.get("events", [])
+                        ],
+                        "metrics": [
+                            metric.model_dump(mode="json")
+                            if hasattr(metric, "model_dump")
+                            else metric
+                            for metric in data.get("metrics", [])
+                        ],
+                    }
+
+                    # Encrypt the payload
+                    encrypted_payload = self._encryptor.encrypt(payload_to_encrypt)
+
+                    # Create encrypted request
+                    encrypted_data = {
+                        "encrypted_payload": encrypted_payload,
+                        "batch_id": data.get("batch_id"),
+                        "agent_version": "1.1.0",
+                    }
+
+                    # Use encrypted endpoint
+                    encrypted_url = (
+                        f"{self.config.endpoint.rstrip('/')}/api/v1/events/encrypted"
+                    )
+
+                    json_data = await safe_json_serialize(encrypted_data)
+                    self.bytes_sent += len(json_data.encode("utf-8"))
+
+                    response = await self._client.post(encrypted_url, content=json_data)
+                    return await self._handle_response(response)
+                else:
+                    # Unencrypted request
+                    json_data = await safe_json_serialize(data)
+                    self.bytes_sent += len(json_data.encode("utf-8"))
+
+                    response = await self._client.post(url, content=json_data)
+                    return await self._handle_response(response)
 
             elif method == "GET":
                 response = await self._client.get(url)
@@ -270,6 +343,9 @@ class HTTPTransport(TransportProtocol):
             else:
                 raise ValueError(f"Unsupported method: {method}")
 
+        except EncryptionError as e:
+            self.logger.error(f"Encryption error for {method} {url}: {str(e)}")
+            raise
         except httpx.HTTPError as e:
             self.logger.error(f"HTTP client error for {method} {url}: {str(e)}")
             raise

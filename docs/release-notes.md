@@ -3,11 +3,30 @@ Release Notes
 
 ___
 
+v1.1.0 (2025-10-14)
+-------------------
+
+New Features (v1.1.0)
+---------------------
+- Added end-to-end payload encryption for secure telemetry transmission using AES-256-GCM.
+- Implemented `PayloadEncryptor` class with project-specific encryption keys.
+- Added encrypted endpoint support for events and metrics (`/api/v1/events/encrypted`).
+- Integrated automatic datetime serialization in encrypted payloads via custom JSON handler.
+- Added encryption key verification during transport initialization.
+
+Technical Details (v1.1.0)
+--------------------------
+- Encryption uses AES-256-GCM with 96-bit nonces and 128-bit authentication tags.
+- Pydantic models are serialized using `.model_dump(mode="json")` before encryption.
+- Custom `_default_json_handler` ensures datetime objects are properly ISO-formatted.
+
+___
+
 v1.0.2 (2025-09-12)
 -------------------
 
 Enhancements (v1.0.2)
-------------
+---------------------
 - Added dynamic rule updated event type.
 
 ___

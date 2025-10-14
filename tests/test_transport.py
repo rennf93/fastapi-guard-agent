@@ -858,3 +858,238 @@ class TestHTTPTransport:
         mock_transport.send_metrics.assert_called_once()
         mock_transport.fetch_dynamic_rules.assert_called_once()
         mock_transport.send_status.assert_called_once()
+
+
+class TestHTTPTransportEncryption:
+    """Tests for HTTPTransport encryption functionality."""
+
+    @pytest.mark.asyncio
+    async def test_init_encryption_with_valid_key(self) -> None:
+        """Test encryption initialization with valid key."""
+        import base64
+
+        valid_key = base64.urlsafe_b64encode(b"0" * 32).decode()
+        config = AgentConfig(
+            api_key="test_key",
+            endpoint="http://test.com",
+            project_id="test_project",
+            project_encryption_key=valid_key,
+        )
+
+        transport = HTTPTransport(config)
+
+        assert transport._encryption_enabled is True
+        assert transport._encryptor is not None
+
+    @pytest.mark.asyncio
+    async def test_init_encryption_with_invalid_key(self) -> None:
+        """Test encryption initialization with invalid key."""
+        config = AgentConfig(
+            api_key="test_key",
+            endpoint="http://test.com",
+            project_id="test_project",
+            project_encryption_key="invalid_key",
+        )
+
+        transport = HTTPTransport(config)
+
+        # Should fallback to unencrypted due to invalid key
+        assert transport._encryption_enabled is False
+        assert transport._encryptor is None
+
+    @pytest.mark.asyncio
+    async def test_init_encryption_with_verify_key_failure(self) -> None:
+        """Test encryption init when verify_key returns False."""
+        import base64
+        from unittest.mock import patch
+
+        valid_key = base64.urlsafe_b64encode(b"0" * 32).decode()
+        config = AgentConfig(
+            api_key="test_key",
+            endpoint="http://test.com",
+            project_id="test_project",
+            project_encryption_key=valid_key,
+        )
+
+        with patch(
+            "guard_agent.encryption.PayloadEncryptor.verify_key", return_value=False
+        ):
+            transport = HTTPTransport(config)
+
+            # Should fallback to unencrypted when verify_key fails
+            assert transport._encryption_enabled is False
+            # Encryptor is created but encryption is disabled
+            assert transport._encryptor is not None
+
+    @pytest.mark.asyncio
+    async def test_init_encryption_with_encryptor_creation_error(self) -> None:
+        """Test encryption init when encryptor creation raises error."""
+        from unittest.mock import patch
+
+        from guard_agent.encryption import EncryptionError
+
+        config = AgentConfig(
+            api_key="test_key",
+            endpoint="http://test.com",
+            project_id="test_project",
+            project_encryption_key="some_key",
+        )
+
+        with patch(
+            "guard_agent.transport.create_encryptor",
+            side_effect=EncryptionError("Test error"),
+        ):
+            transport = HTTPTransport(config)
+
+            # Should fallback to unencrypted due to error
+            assert transport._encryption_enabled is False
+
+    @pytest.mark.asyncio
+    async def test_make_request_encrypted_events_endpoint(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        """Test encrypted request for events endpoint."""
+        import base64
+
+        valid_key = base64.urlsafe_b64encode(b"0" * 32).decode()
+        agent_config.project_encryption_key = valid_key
+
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        # Configure successful response
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={"status": "ok"})
+        mock_client.post.return_value = mock_response
+
+        data = {
+            "events": [{"event_type": "test"}],
+            "metrics": [],
+            "batch_id": "test_123",
+        }
+
+        result = await transport._make_request("POST", "/api/v1/events", data)
+
+        assert result == {"status": "ok"}
+        # Verify POST was called to encrypted endpoint
+        assert mock_client.post.call_count == 1
+        call_args = mock_client.post.call_args
+        assert "/api/v1/events/encrypted" in str(call_args[0][0])
+
+    @pytest.mark.asyncio
+    async def test_make_request_encrypted_metrics_endpoint(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        """Test encrypted request for metrics endpoint."""
+        import base64
+
+        valid_key = base64.urlsafe_b64encode(b"0" * 32).decode()
+        agent_config.project_encryption_key = valid_key
+
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        # Configure successful response
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={"status": "ok"})
+        mock_client.post.return_value = mock_response
+
+        data = {
+            "events": [],
+            "metrics": [{"metric_type": "test"}],
+            "batch_id": "test_123",
+        }
+
+        result = await transport._make_request("POST", "/api/v1/metrics", data)
+
+        assert result == {"status": "ok"}
+        # Verify POST was called to encrypted endpoint
+        assert mock_client.post.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_make_request_encrypted_without_encryptor(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        """Test encrypted endpoint when encryptor not initialized."""
+        import base64
+
+        from guard_agent.encryption import EncryptionError
+
+        valid_key = base64.urlsafe_b64encode(b"0" * 32).decode()
+        agent_config.project_encryption_key = valid_key
+
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+        transport._encryption_enabled = True
+        transport._encryptor = None  # Force encryptor to None
+
+        data = {"events": [], "metrics": [], "batch_id": "test"}
+
+        with pytest.raises(EncryptionError, match="Encryptor not initialized"):
+            await transport._make_request("POST", "/api/v1/events", data)
+
+    @pytest.mark.asyncio
+    async def test_make_request_encryption_error_handling(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        """Test EncryptionError handling during encryption."""
+        import base64
+        from unittest.mock import patch
+
+        from guard_agent.encryption import EncryptionError
+
+        valid_key = base64.urlsafe_b64encode(b"0" * 32).decode()
+        agent_config.project_encryption_key = valid_key
+
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        data = {"events": [], "metrics": [], "batch_id": "test"}
+
+        # Mock encryptor to raise error
+        with patch.object(
+            transport._encryptor, "encrypt", side_effect=EncryptionError("Test error")
+        ):
+            with pytest.raises(EncryptionError):
+                await transport._make_request("POST", "/api/v1/events", data)
+
+    @pytest.mark.asyncio
+    async def test_send_events_with_encryption(self, mock_client: AsyncMock) -> None:
+        """Test end-to-end event sending with encryption enabled."""
+        import base64
+
+        valid_key = base64.urlsafe_b64encode(b"0" * 32).decode()
+        config = AgentConfig(
+            api_key="test_key",
+            endpoint="http://test.com",
+            project_id="test_project",
+            project_encryption_key=valid_key,
+        )
+
+        transport = HTTPTransport(config)
+        transport._client = mock_client
+
+        # Configure successful response
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value={"status": "ok"})
+        mock_client.post.return_value = mock_response
+
+        events = [
+            SecurityEvent(
+                timestamp=datetime.now(timezone.utc),
+                event_type="ip_banned",
+                ip_address="192.168.1.1",
+                action_taken="banned",
+                reason="test",
+            )
+        ]
+
+        result = await transport.send_events(events)
+
+        assert result is True
+        assert transport._encryption_enabled is True
+        # Verify encrypted endpoint was used
+        assert mock_client.post.call_count >= 1
