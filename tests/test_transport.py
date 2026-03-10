@@ -367,8 +367,8 @@ class TestHTTPTransport:
             call_args = mock_client_class.call_args
             headers = call_args[1]["headers"]
 
-            assert "Authorization" in headers
-            assert headers["Authorization"] == f"Bearer {agent_config.api_key}"
+            assert "X-API-Key" in headers
+            assert headers["X-API-Key"] == agent_config.api_key
 
     def test_get_stats(self, agent_config: AgentConfig) -> None:
         """Test getting transport statistics."""

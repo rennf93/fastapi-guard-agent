@@ -198,6 +198,12 @@ class DynamicRules(BaseModel):
     emergency_whitelist: list[str] = Field(
         default_factory=list, description="Emergency whitelist IPs"
     )
+    emergency_whitelist_only: bool = Field(
+        default=False, description="Only allow emergency whitelist IPs"
+    )
+    message: str | None = Field(
+        default=None, description="Optional rule message from server"
+    )
 
 
 class AgentStatus(BaseModel):
@@ -222,3 +228,6 @@ class EventBatch(BaseModel):
     batch_id: str
     created_at: datetime
     compressed: bool = Field(default=False)
+    agent_version: str | None = Field(
+        default=None, description="Agent version string"
+    )

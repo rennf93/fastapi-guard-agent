@@ -82,7 +82,7 @@ class HTTPTransport(TransportProtocol):
             headers = {
                 "User-Agent": "FastAPI-Guard-Agent/1.1.0",
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.config.api_key}",
+                "X-API-Key": self.config.api_key,
             }
 
             if self.config.project_id:
@@ -125,6 +125,7 @@ class HTTPTransport(TransportProtocol):
                 events=events,
                 batch_id=generate_batch_id(),
                 created_at=get_current_timestamp(),
+                agent_version="1.1.0",
             )
 
             return await self._send_with_retry(
@@ -147,6 +148,7 @@ class HTTPTransport(TransportProtocol):
                 metrics=metrics,
                 batch_id=generate_batch_id(),
                 created_at=get_current_timestamp(),
+                agent_version="1.1.0",
             )
 
             return await self._send_with_retry(
