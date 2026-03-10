@@ -133,7 +133,6 @@ class RateLimiter:
         """Check if operation is allowed under rate limit."""
         now = time.time()
 
-        # Remove old calls outside the time window
         self.calls = [
             call_time for call_time in self.calls if now - call_time < self.time_window
         ]
@@ -161,7 +160,7 @@ class CircuitBreaker:
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
         self.last_failure_time: float | None = None
-        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
+        self.state = "CLOSED"
 
     async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function with circuit breaker protection."""

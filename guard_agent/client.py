@@ -16,7 +16,7 @@ from guard_agent.transport import HTTPTransport
 from guard_agent.utils import (
     get_current_timestamp,
     validate_config,
-)  # , setup_agent_logging
+)
 
 
 class GuardAgentHandler(AgentHandlerProtocol):
@@ -35,42 +35,34 @@ class GuardAgentHandler(AgentHandlerProtocol):
         return cls._instance
 
     def __init__(self, config: AgentConfig):
-        # Prevent re-initialization of singleton
         if hasattr(self, "_initialized") and self._initialized:
-            # Update config if needed
             self.config = config
             return
 
         self.config = config
         self.logger = logging.getLogger(__name__)
 
-        # Validate configuration
         config_errors = validate_config(config)
         if config_errors:
             raise ValueError(f"Invalid agent configuration: {'; '.join(config_errors)}")
 
-        # Core components
         self.buffer = EventBuffer(config)
         self.transport = HTTPTransport(config)
 
-        # Redis integration
         self.redis_handler: RedisHandlerProtocol | None = None
 
-        # Lifecycle management
         self._running = False
         self._flush_task: asyncio.Task | None = None
         self._status_task: asyncio.Task | None = None
         self._rules_task: asyncio.Task | None = None
         self._start_time = time.time()
 
-        # Statistics
         self.events_sent = 0
         self.metrics_sent = 0
         self.events_failed = 0
         self.metrics_failed = 0
         self.rules_fetched = 0
 
-        # Dynamic rules cache
         self._cached_rules: DynamicRules | None = None
         self._rules_last_update: float = 0
 
@@ -90,18 +82,13 @@ class GuardAgentHandler(AgentHandlerProtocol):
             return
 
         try:
-            # Initialize transport
             await self.transport.initialize()
-
-            # Start buffer auto-flush
             await self.buffer.start_auto_flush()
 
-            # Start background tasks
             self._running = True
             self._flush_task = asyncio.create_task(self._flush_loop())
             self._status_task = asyncio.create_task(self._status_loop())
 
-            # Start rules fetching if enabled
             if self.config.project_id:
                 self._rules_task = asyncio.create_task(self._rules_loop())
 
@@ -116,13 +103,11 @@ class GuardAgentHandler(AgentHandlerProtocol):
         """Stop the agent and cleanup resources."""
         self._running = False
 
-        # Cancel background tasks
         tasks = [self._flush_task, self._status_task, self._rules_task]
         for task in tasks:
             if task and not task.done():
                 task.cancel()
 
-        # Wait for tasks to complete
         for task in tasks:
             if task:
                 try:
@@ -130,23 +115,20 @@ class GuardAgentHandler(AgentHandlerProtocol):
                 except asyncio.CancelledError:
                     pass
 
-        # Stop buffer auto-flush
         await self.buffer.stop_auto_flush()
-
-        # Final flush
         await self.flush_buffer()
-
-        # Close transport
         await self.transport.close()
 
         self.logger.info("Guard Agent stopped")
 
-    async def send_event(self, event: SecurityEvent) -> None:
+    async def send_event(self, event: Any) -> None:
         """Send security event through buffer."""
         if not self.config.enable_events:
             return
 
         try:
+            if not isinstance(event, SecurityEvent):
+                event = self._normalize_event(event)
             await self.buffer.add_event(event)
             self.logger.debug(
                 f"Event buffered: {event.event_type} from {event.ip_address}"
@@ -154,29 +136,43 @@ class GuardAgentHandler(AgentHandlerProtocol):
         except Exception as e:
             self.logger.error(f"Failed to buffer event: {str(e)}")
 
-    async def send_metric(self, metric: SecurityMetric) -> None:
+    async def send_metric(self, metric: Any) -> None:
         """Send metric through buffer."""
         if not self.config.enable_metrics:
             return
 
         try:
+            if not isinstance(metric, SecurityMetric):
+                metric = self._normalize_metric(metric)
             await self.buffer.add_metric(metric)
             self.logger.debug(f"Metric buffered: {metric.metric_type} = {metric.value}")
         except Exception as e:
             self.logger.error(f"Failed to buffer metric: {str(e)}")
 
+    def _normalize_event(self, event: Any) -> SecurityEvent:
+        event_data: dict[str, Any] = {}
+        for field_name in SecurityEvent.model_fields:
+            if hasattr(event, field_name):
+                event_data[field_name] = getattr(event, field_name)
+        return SecurityEvent(**event_data)
+
+    def _normalize_metric(self, metric: Any) -> SecurityMetric:
+        metric_data: dict[str, Any] = {}
+        for field_name in SecurityMetric.model_fields:
+            if hasattr(metric, field_name):
+                metric_data[field_name] = getattr(metric, field_name)
+        return SecurityMetric(**metric_data)
+
     async def get_dynamic_rules(self) -> DynamicRules | None:
         """Get cached dynamic rules or fetch fresh ones."""
         current_time = time.time()
 
-        # Check if cached rules are still valid
         if (
             self._cached_rules
             and current_time - self._rules_last_update < self._cached_rules.ttl
         ):
             return self._cached_rules
 
-        # Fetch fresh rules
         try:
             rules = await self.transport.fetch_dynamic_rules()
             if rules:
@@ -187,12 +183,11 @@ class GuardAgentHandler(AgentHandlerProtocol):
             return rules
         except Exception as e:
             self.logger.error(f"Failed to fetch dynamic rules: {str(e)}")
-            return self._cached_rules  # Return cached rules as fallback
+            return self._cached_rules
 
     async def flush_buffer(self) -> None:
         """Manually flush all buffers."""
         try:
-            # Flush events
             events = await self.buffer.flush_events()
             if events:
                 success = await self.transport.send_events(events)
@@ -203,7 +198,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
                     self.events_failed += len(events)
                     self.logger.warning(f"Failed to send {len(events)} events")
 
-            # Flush metrics
             metrics = await self.buffer.flush_metrics()
             if metrics:
                 success = await self.transport.send_metrics(metrics)
@@ -223,14 +217,12 @@ class GuardAgentHandler(AgentHandlerProtocol):
         uptime = time.time() - self._start_time
         buffer_size = await self.buffer.get_buffer_size()
 
-        # Determine health status
         transport_stats = self.transport.get_stats()
         buffer_stats = self.buffer.get_stats()
 
         status = "healthy"
         errors = []
 
-        # Check for issues
         if transport_stats["circuit_breaker_state"] == "OPEN":
             status = "degraded"
             errors.append("Transport circuit breaker is open")
@@ -247,7 +239,7 @@ class GuardAgentHandler(AgentHandlerProtocol):
                 + self.events_failed
                 + self.metrics_failed,
             )
-            if failure_rate > 0.1:  # 10% failure rate
+            if failure_rate > 0.1:
                 status = "degraded"
                 errors.append(f"High failure rate: {failure_rate:.1%}")
 
@@ -282,7 +274,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
         """Background status reporting loop."""
         while self._running:
             try:
-                # Send status every 5 minutes
                 await asyncio.sleep(300)
                 if self._running:
                     status = await self.get_status()
@@ -296,7 +287,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
         """Background dynamic rules fetching loop."""
         while self._running:
             try:
-                # Fetch rules every 5 minutes
                 await asyncio.sleep(300)
                 if self._running:
                     await self.get_dynamic_rules()
@@ -332,24 +322,21 @@ class GuardAgentHandler(AgentHandlerProtocol):
             return False
 
         try:
-            # Check transport health
             transport_stats = self.transport.get_stats()
             if transport_stats.get("circuit_breaker_state") == "OPEN":
                 return False
 
-            # Check buffer health
             buffer_size = await self.buffer.get_buffer_size()
-            if buffer_size >= self.config.buffer_size * 0.95:  # 95% full
+            if buffer_size >= self.config.buffer_size * 0.95:
                 return False
 
-            # Check failure rates
             total_sent = self.events_sent + self.metrics_sent
             total_failed = self.events_failed + self.metrics_failed
             total_attempts = total_sent + total_failed
 
             if total_attempts > 0:
                 failure_rate = total_failed / total_attempts
-                if failure_rate > 0.5:  # 50% failure rate
+                if failure_rate > 0.5:
                     return False
 
             return True
@@ -358,7 +345,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
             return False
 
 
-# Singleton factory function following fastapi-guard pattern
 def guard_agent(config: AgentConfig) -> GuardAgentHandler:
     """
     Factory function for GuardAgentHandler singleton.

@@ -261,6 +261,6 @@ async def main() -> None:
 app = create_fastapi_app_with_agent()
 
 if __name__ == "__main__":
-    # Note: This will try to connect to the demo endpoint which doesn't exist
+    # NOTE: This will try to connect to the demo endpoint which doesn't exist
     # In a real implementation, you would have a valid API key and endpoint
     asyncio.run(main())

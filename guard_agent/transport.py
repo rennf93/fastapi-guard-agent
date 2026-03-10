@@ -34,24 +34,20 @@ class HTTPTransport(TransportProtocol):
         self.config = config
         self.logger = logging.getLogger(__name__)
 
-        # HTTP client management
         self._client: httpx.AsyncClient | None = None
 
-        # Encryption support
         self._encryptor: PayloadEncryptor | None = None
         self._encryption_enabled = False
         self._init_encryption()
 
-        # Reliability features
         self.circuit_breaker = CircuitBreaker(
             failure_threshold=5, recovery_timeout=60.0
         )
         self.rate_limiter = RateLimiter(
-            max_calls=100,  # 100 calls per minute
+            max_calls=100,
             time_window=60.0,
         )
 
-        # Statistics
         self.requests_sent = 0
         self.requests_failed = 0
         self.bytes_sent = 0
@@ -83,7 +79,6 @@ class HTTPTransport(TransportProtocol):
             return
 
         try:
-            # Setup headers
             headers = {
                 "User-Agent": "FastAPI-Guard-Agent/1.1.0",
                 "Content-Type": "application/json",
@@ -93,7 +88,6 @@ class HTTPTransport(TransportProtocol):
             if self.config.project_id:
                 headers["X-Project-ID"] = self.config.project_id
 
-            # Create client with timeouts and connection pooling
             self._client = httpx.AsyncClient(
                 headers=headers,
                 timeout=httpx.Timeout(
@@ -106,7 +100,7 @@ class HTTPTransport(TransportProtocol):
                     max_keepalive_connections=5,
                     keepalive_expiry=30.0,
                 ),
-                follow_redirects=False,  # Handle redirects manually
+                follow_redirects=False,
             )
 
             self.logger.info("HTTP transport initialized successfully")
@@ -126,7 +120,6 @@ class HTTPTransport(TransportProtocol):
             return True
 
         try:
-            # Create event batch
             batch = EventBatch(
                 project_id=self.config.project_id or "default",
                 events=events,
@@ -134,7 +127,6 @@ class HTTPTransport(TransportProtocol):
                 created_at=get_current_timestamp(),
             )
 
-            # Send with reliability features
             return await self._send_with_retry(
                 "/api/v1/events", batch.model_dump(), "events"
             )
@@ -150,7 +142,6 @@ class HTTPTransport(TransportProtocol):
             return True
 
         try:
-            # Create metric batch
             batch = EventBatch(
                 project_id=self.config.project_id or "default",
                 metrics=metrics,
@@ -158,7 +149,6 @@ class HTTPTransport(TransportProtocol):
                 created_at=get_current_timestamp(),
             )
 
-            # Send with reliability features
             return await self._send_with_retry(
                 "/api/v1/metrics", batch.model_dump(), "metrics"
             )
@@ -199,7 +189,6 @@ class HTTPTransport(TransportProtocol):
         """Send data with retry logic and circuit breaker."""
         for attempt in range(self.config.retry_attempts + 1):
             try:
-                # Check rate limit
                 if not await self.rate_limiter.acquire():
                     retry_after = self.rate_limiter.get_retry_after()
                     self.logger.warning(
@@ -208,7 +197,6 @@ class HTTPTransport(TransportProtocol):
                     await asyncio.sleep(retry_after)
                     continue
 
-                # Send via circuit breaker
                 success = await self.circuit_breaker.call(
                     self._make_request, "POST", endpoint, data
                 )
@@ -238,18 +226,15 @@ class HTTPTransport(TransportProtocol):
         """GET request with retry logic and circuit breaker."""
         for attempt in range(self.config.retry_attempts + 1):
             try:
-                # Check rate limit
                 if not await self.rate_limiter.acquire():
                     retry_after = self.rate_limiter.get_retry_after()
                     await asyncio.sleep(retry_after)
                     continue
 
-                # Request via circuit breaker
                 response_data = await self.circuit_breaker.call(
                     self._make_request, "GET", endpoint, None
                 )
 
-                # Only return dict data for GET requests, not boolean indicators
                 if isinstance(response_data, dict):
                     self.requests_sent += 1
                     return response_data
@@ -283,8 +268,6 @@ class HTTPTransport(TransportProtocol):
 
         try:
             if method == "POST" and data:
-                # Check if this is an events or
-                # metrics endpoint and encryption is enabled
                 if self._encryption_enabled and endpoint in [
                     "/api/v1/events",
                     "/api/v1/metrics",
@@ -292,7 +275,6 @@ class HTTPTransport(TransportProtocol):
                     if not self._encryptor:
                         raise EncryptionError("Encryptor not initialized")
 
-                    # Extract events/metrics for encryption and serialize to dicts
                     payload_to_encrypt = {
                         "events": [
                             event.model_dump(mode="json")
@@ -308,17 +290,14 @@ class HTTPTransport(TransportProtocol):
                         ],
                     }
 
-                    # Encrypt the payload
                     encrypted_payload = self._encryptor.encrypt(payload_to_encrypt)
 
-                    # Create encrypted request
                     encrypted_data = {
                         "encrypted_payload": encrypted_payload,
                         "batch_id": data.get("batch_id"),
                         "agent_version": "1.1.0",
                     }
 
-                    # Use encrypted endpoint
                     encrypted_url = (
                         f"{self.config.endpoint.rstrip('/')}/api/v1/events/encrypted"
                     )
@@ -329,7 +308,6 @@ class HTTPTransport(TransportProtocol):
                     response = await self._client.post(encrypted_url, content=json_data)
                     return await self._handle_response(response)
                 else:
-                    # Unencrypted request
                     json_data = await safe_json_serialize(data)
                     self.bytes_sent += len(json_data.encode("utf-8"))
 
@@ -358,41 +336,33 @@ class HTTPTransport(TransportProtocol):
 
     async def _handle_response(self, response: httpx.Response) -> dict[str, Any] | bool:
         """Handle HTTP response with proper error checking."""
-        # Log response
         self.logger.debug(f"Response: {response.status_code} for {response.url}")
 
-        # Check status codes
         if response.status_code == 200:
             try:
                 json_data = response.json()
-                # Ensure we return a dict for successful JSON responses
                 if isinstance(json_data, dict):
                     return json_data
                 else:
-                    # If JSON response is not a dict, treat as success
                     return True
             except Exception:
-                return True  # Success for non-JSON responses
+                return True
 
         elif response.status_code == 201:
-            return True  # Created successfully
+            return True
 
         elif response.status_code == 429:
-            # Rate limited by server
             retry_after = response.headers.get("Retry-After", "60")
             raise Exception(f"Rate limited by server, retry after {retry_after}s")
 
         elif response.status_code in [401, 403]:
-            # Authentication/authorization error
             raise Exception(f"Authentication failed: {response.status_code}")
 
         elif response.status_code >= 500:
-            # Server error - retryable
             error_text = response.text
             raise Exception(f"Server error {response.status_code}: {error_text}")
 
         else:
-            # Client error - likely not retryable
             error_text = response.text
             self.logger.error(f"Client error {response.status_code}: {error_text}")
             return False

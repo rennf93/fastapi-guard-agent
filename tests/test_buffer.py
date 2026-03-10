@@ -285,6 +285,34 @@ class TestBufferRedisPersistence:
         assert "request_count" in args[2]
 
     @pytest.mark.asyncio
+    async def test_persist_duck_typed_metric_to_redis(
+        self,
+        buffer: EventBuffer,
+        mock_redis_handler: AsyncMock,
+    ) -> None:
+        """Test Redis persistence for duck-typed metric without model_dump."""
+        await buffer.initialize_redis(mock_redis_handler)
+        duck_metric = type(
+            "Metric", (), {"metric_type": "request_count", "value": 1.0}
+        )()
+        await buffer._persist_metric_to_redis(duck_metric)
+        mock_redis_handler.set_key.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_persist_duck_typed_event_to_redis(
+        self,
+        buffer: EventBuffer,
+        mock_redis_handler: AsyncMock,
+    ) -> None:
+        """Test Redis persistence for duck-typed event without model_dump."""
+        await buffer.initialize_redis(mock_redis_handler)
+        duck_event = type(
+            "Event", (), {"event_type": "ip_banned", "ip_address": "1.1.1.1"}
+        )()
+        await buffer._persist_event_to_redis(duck_event)
+        mock_redis_handler.set_key.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_persist_to_redis_no_handler(
         self,
         buffer: EventBuffer,

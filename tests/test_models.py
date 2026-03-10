@@ -102,16 +102,40 @@ class TestSecurityEvent:
         assert event.action_taken == "banned"
         assert event.reason == "threshold_exceeded"
 
-    def test_invalid_event_type(self) -> None:
-        """Test that invalid event type raises validation error."""
-        with pytest.raises(ValidationError):
-            SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
-                event_type="invalid_type",
-                ip_address="192.168.1.1",
-                action_taken="banned",
-                reason="test",
-            )
+    def test_dynamic_event_type(self) -> None:
+        """Test that dynamic event types are accepted (parent uses f-strings)."""
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="pattern_anomaly_timing",
+            ip_address="192.168.1.1",
+            action_taken="logged",
+            reason="anomaly detected",
+        )
+        assert event.event_type == "pattern_anomaly_timing"
+
+    def test_event_without_ip_and_reason(self) -> None:
+        """Test creating event without ip_address/reason (security_headers_handler)."""
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="security_headers_applied",
+        )
+        assert event.ip_address == ""
+        assert event.reason == ""
+        assert event.action_taken == ""
+
+    def test_event_with_extra_fields(self) -> None:
+        """Test that extra fields are allowed (parent passes **kwargs)."""
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="10.0.0.1",
+            action_taken="banned",
+            reason="test",
+            custom_field="custom_value",
+            severity=5,
+        )
+        assert event.custom_field == "custom_value"
+        assert event.severity == 5
 
 
 class TestSecurityMetric:

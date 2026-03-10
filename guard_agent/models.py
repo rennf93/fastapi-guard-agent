@@ -4,6 +4,43 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+KNOWN_EVENT_TYPES = [
+    "ip_banned",
+    "ip_unbanned",
+    "ip_blocked",
+    "rate_limited",
+    "suspicious_request",
+    "cloud_blocked",
+    "country_blocked",
+    "penetration_attempt",
+    "behavioral_violation",
+    "user_agent_blocked",
+    "custom_request_check",
+    "decorator_violation",
+    "decoding_error",
+    "detection_engine_callback_error",
+    "geo_lookup_failed",
+    "https_enforced",
+    "pattern_anomaly_slow_execution",
+    "redis_connection",
+    "redis_error",
+    "dynamic_rule_applied",
+    "dynamic_rule_updated",
+    "path_excluded",
+    "pattern_detected",
+    "pattern_added",
+    "pattern_removed",
+    "access_denied",
+    "authentication_failed",
+    "content_filtered",
+    "emergency_mode_activated",
+    "emergency_mode_block",
+    "dynamic_rule_violation",
+    "security_bypass",
+    "security_headers_applied",
+    "csp_violation",
+]
+
 
 class AgentConfig(BaseModel):
     """Agent configuration following SecurityConfig pattern."""
@@ -18,22 +55,18 @@ class AgentConfig(BaseModel):
         default=None, description="Project ID for organization"
     )
 
-    # Buffering configuration
     buffer_size: int = Field(default=100, description="Event buffer size")
     flush_interval: int = Field(
         default=30, description="Buffer flush interval in seconds"
     )
 
-    # Feature toggles
     enable_metrics: bool = Field(default=True, description="Send performance metrics")
     enable_events: bool = Field(default=True, description="Send security events")
 
-    # HTTP configuration
     retry_attempts: int = Field(default=3, description="Number of retry attempts")
     timeout: int = Field(default=30, description="Request timeout in seconds")
     backoff_factor: float = Field(default=1.0, description="Backoff factor for retries")
 
-    # Data filtering
     sensitive_headers: list[str] = Field(
         default_factory=lambda: ["authorization", "cookie", "x-api-key"],
         description="Headers to exclude from telemetry",
@@ -42,7 +75,6 @@ class AgentConfig(BaseModel):
         default=1024, description="Maximum payload size to include in events (bytes)"
     )
 
-    # Encryption
     project_encryption_key: str | None = Field(
         default=None,
         description="Project-specific encryption key for secure telemetry transmission",
@@ -68,48 +100,15 @@ class AgentConfig(BaseModel):
 class SecurityEvent(BaseModel):
     """Security event model for telemetry."""
 
+    model_config = ConfigDict(extra="allow")
+
     timestamp: datetime
-    event_type: Literal[
-        "ip_banned",
-        "ip_unbanned",
-        "ip_blocked",
-        "rate_limited",
-        "suspicious_request",
-        "cloud_blocked",
-        "country_blocked",
-        "penetration_attempt",
-        "behavioral_violation",
-        "user_agent_blocked",
-        "custom_request_check",
-        "decorator_violation",
-        "decoding_error",
-        "detection_engine_callback_error",
-        "geo_lookup_failed",
-        "https_enforced",
-        "pattern_anomaly_slow_execution",
-        "redis_connection",
-        "redis_error",
-        "dynamic_rule_applied",
-        "dynamic_rule_updated",
-        "path_excluded",
-        "pattern_detected",
-        "pattern_added",
-        "pattern_removed",
-        "access_denied",
-        "authentication_failed",
-        "content_filtered",
-        "emergency_mode_activated",
-        "emergency_mode_block",
-        "dynamic_rule_violation",
-        "security_bypass",
-        "security_headers_applied",
-        "csp_violation",
-    ]
-    ip_address: str
+    event_type: str
+    ip_address: str = ""
     country: str | None = None
     user_agent: str | None = None
-    action_taken: str
-    reason: str
+    action_taken: str = ""
+    reason: str = ""
     endpoint: str | None = None
     method: str | None = None
     status_code: int | None = None
@@ -142,7 +141,6 @@ class SecurityMetric(BaseModel):
 class DynamicRules(BaseModel):
     """Dynamic rules received from SaaS platform."""
 
-    # Rule metadata
     rule_id: str = Field(default="default-rule", description="Unique rule ID")
     version: int = Field(default=1, description="Rule version number")
     timestamp: datetime = Field(
@@ -154,12 +152,10 @@ class DynamicRules(BaseModel):
     )
     ttl: int = Field(default=300, description="Cache TTL in seconds")
 
-    # IP management rules
     ip_blacklist: list[str] = Field(default_factory=list, description="IPs to ban")
     ip_whitelist: list[str] = Field(default_factory=list, description="IPs to allow")
     ip_ban_duration: int = Field(default=3600, description="Ban duration in seconds")
 
-    # Country/geo rules
     blocked_countries: list[str] = Field(
         default_factory=list, description="Countries to block"
     )
@@ -167,7 +163,6 @@ class DynamicRules(BaseModel):
         default_factory=list, description="Countries to allow"
     )
 
-    # Rate limiting rules
     global_rate_limit: int | None = Field(default=None, description="Global rate limit")
     global_rate_window: int | None = Field(
         default=None, description="Global rate window"
@@ -177,22 +172,18 @@ class DynamicRules(BaseModel):
         description="Per-endpoint rate limits {endpoint: (requests, window)}",
     )
 
-    # Cloud provider rules
     blocked_cloud_providers: set[str] = Field(
         default_factory=set, description="Cloud providers to block"
     )
 
-    # User agent rules
     blocked_user_agents: list[str] = Field(
         default_factory=list, description="User agents to block"
     )
 
-    # Pattern rules
     suspicious_patterns: list[str] = Field(
         default_factory=list, description="Additional suspicious patterns"
     )
 
-    # Feature toggles
     enable_penetration_detection: bool | None = Field(
         default=None, description="Override penetration detection setting"
     )
@@ -203,7 +194,6 @@ class DynamicRules(BaseModel):
         default=None, description="Override rate limiting setting"
     )
 
-    # Emergency controls
     emergency_mode: bool = Field(default=False, description="Emergency lockdown mode")
     emergency_whitelist: list[str] = Field(
         default_factory=list, description="Emergency whitelist IPs"

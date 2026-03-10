@@ -37,25 +37,20 @@ from guard_agent.utils import (
 __version__ = "1.1.0"
 
 __all__ = [
-    # Main components
     "guard_agent",
     "GuardAgentHandler",
     "AgentConfig",
-    # Models
     "SecurityEvent",
     "SecurityMetric",
     "DynamicRules",
     "AgentStatus",
     "EventBatch",
-    # Core components
     "EventBuffer",
     "HTTPTransport",
-    # Protocols
     "AgentHandlerProtocol",
     "TransportProtocol",
     "BufferProtocol",
     "RedisHandlerProtocol",
-    # Utilities
     "generate_batch_id",
     "get_current_timestamp",
     "hash_ip",
@@ -65,6 +60,5 @@ __all__ = [
     "setup_agent_logging",
     "RateLimiter",
     "CircuitBreaker",
-    # Version
     "__version__",
 ]

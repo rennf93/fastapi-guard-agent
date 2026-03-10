@@ -14,6 +14,7 @@ from guard_agent.models import (
     SecurityEvent,
     SecurityMetric,
 )
+from guard_agent.protocols import AgentHandlerProtocol
 
 
 @pytest.fixture(autouse=True)
@@ -791,3 +792,58 @@ class TestGuardAgentHandler:
         result = await handler.health_check()
         assert result is False
         assert "Error during health check: Buffer error" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_send_duck_typed_event(self, agent_config: AgentConfig) -> None:
+        """Test that duck-typed events are normalized into SecurityEvent."""
+        handler = GuardAgentHandler(agent_config)
+        handler.buffer = AsyncMock()
+
+        duck_event = type(
+            "SecurityEvent",
+            (),
+            {
+                "timestamp": datetime.now(timezone.utc),
+                "event_type": "pattern_anomaly_timing",
+                "ip_address": "10.0.0.1",
+                "action_taken": "logged",
+                "reason": "anomaly detected",
+            },
+        )()
+
+        await handler.send_event(duck_event)
+
+        handler.buffer.add_event.assert_called_once()
+        buffered = handler.buffer.add_event.call_args[0][0]
+        assert isinstance(buffered, SecurityEvent)
+        assert buffered.event_type == "pattern_anomaly_timing"
+        assert buffered.ip_address == "10.0.0.1"
+
+    @pytest.mark.asyncio
+    async def test_send_duck_typed_metric(self, agent_config: AgentConfig) -> None:
+        """Test that duck-typed metrics are normalized into SecurityMetric."""
+        handler = GuardAgentHandler(agent_config)
+        handler.buffer = AsyncMock()
+
+        duck_metric = type(
+            "SecurityMetric",
+            (),
+            {
+                "timestamp": datetime.now(timezone.utc),
+                "metric_type": "request_count",
+                "value": 42.0,
+            },
+        )()
+
+        await handler.send_metric(duck_metric)
+
+        handler.buffer.add_metric.assert_called_once()
+        buffered = handler.buffer.add_metric.call_args[0][0]
+        assert isinstance(buffered, SecurityMetric)
+        assert buffered.metric_type == "request_count"
+        assert buffered.value == 42.0
+
+    def test_protocol_compliance(self, agent_config: AgentConfig) -> None:
+        """Test that GuardAgentHandler satisfies AgentHandlerProtocol."""
+        handler = GuardAgentHandler(agent_config)
+        assert isinstance(handler, AgentHandlerProtocol)

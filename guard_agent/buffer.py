@@ -1,6 +1,4 @@
 import asyncio
-
-# import json
 import logging
 import time
 from collections import deque
@@ -11,7 +9,7 @@ from guard_agent.protocols import BufferProtocol, RedisHandlerProtocol
 from guard_agent.utils import (
     safe_json_deserialize,
     safe_json_serialize,
-)  # , get_current_timestamp
+)
 
 
 class EventBuffer(BufferProtocol):
@@ -24,18 +22,14 @@ class EventBuffer(BufferProtocol):
         self.config = config
         self.logger = logging.getLogger(__name__)
 
-        # In-memory buffers
         self.event_buffer: deque[SecurityEvent] = deque(maxlen=config.buffer_size)
         self.metric_buffer: deque[SecurityMetric] = deque(maxlen=config.buffer_size)
 
-        # Redis integration
         self.redis_handler: RedisHandlerProtocol | None = None
 
-        # Flush management
         self._flush_task: asyncio.Task | None = None
         self._running = False
 
-        # Statistics
         self.events_buffered = 0
         self.metrics_buffered = 0
         self.events_flushed = 0
@@ -71,11 +65,9 @@ class EventBuffer(BufferProtocol):
             self.event_buffer.append(event)
             self.events_buffered += 1
 
-            # Persist to Redis if available
             if self.redis_handler:
                 await self._persist_event_to_redis(event)
 
-            # Check if buffer is full and needs immediate flush
             if len(self.event_buffer) >= self.config.buffer_size:
                 asyncio.create_task(self._flush_if_needed())
 
@@ -88,11 +80,9 @@ class EventBuffer(BufferProtocol):
             self.metric_buffer.append(metric)
             self.metrics_buffered += 1
 
-            # Persist to Redis if available
             if self.redis_handler:
                 await self._persist_metric_to_redis(metric)
 
-            # Check if buffer is full and needs immediate flush
             if len(self.metric_buffer) >= self.config.buffer_size:
                 asyncio.create_task(self._flush_if_needed())
 
@@ -105,7 +95,6 @@ class EventBuffer(BufferProtocol):
         self.event_buffer.clear()
         self.events_flushed += len(events)
 
-        # Clear from Redis
         if self.redis_handler and events:
             await self._clear_events_from_redis(len(events))
 
@@ -118,7 +107,6 @@ class EventBuffer(BufferProtocol):
         self.metric_buffer.clear()
         self.metrics_flushed += len(metrics)
 
-        # Clear from Redis
         if self.redis_handler and metrics:
             await self._clear_metrics_from_redis(len(metrics))
 
@@ -153,14 +141,12 @@ class EventBuffer(BufferProtocol):
         """Check if flush is needed and perform it."""
         current_time = time.time()
 
-        # Check if it's time to flush based on interval
         time_since_last_flush = (
             current_time - self.last_flush_time
             if self.last_flush_time
             else self.config.flush_interval + 1
         )
 
-        # Flush if buffer is getting full or enough time has passed
         buffer_size = await self.get_buffer_size()
         should_flush = (
             buffer_size >= self.config.buffer_size * 0.8
@@ -169,8 +155,8 @@ class EventBuffer(BufferProtocol):
 
         if should_flush and buffer_size > 0:
             self.logger.debug(f"Triggering buffer flush - size: {buffer_size}")
-            # Note: This method doesn't actually send data, just marks it ready
-            # The actual sending is handled by the transport layer
+            # NOTE: This method doesn't actually send data, just marks it ready.
+            # The actual sending is handled by the transport layer.
 
     async def _persist_event_to_redis(self, event: SecurityEvent) -> None:
         """Persist event to Redis for durability."""
@@ -179,12 +165,13 @@ class EventBuffer(BufferProtocol):
 
         try:
             key = f"event_{int(time.time() * 1000)}"
-            serialized = await safe_json_serialize(event.model_dump())
+            data = event.model_dump() if hasattr(event, "model_dump") else vars(event)
+            serialized = await safe_json_serialize(data)
             await self.redis_handler.set_key(
                 "agent_events",
                 key,
                 serialized,
-                ttl=3600,  # 1 hour TTL
+                ttl=3600,
             )
         except Exception as e:
             self.logger.warning(f"Failed to persist event to Redis: {str(e)}")
@@ -196,12 +183,16 @@ class EventBuffer(BufferProtocol):
 
         try:
             key = f"metric_{int(time.time() * 1000)}"
-            serialized = await safe_json_serialize(metric.model_dump())
+            if hasattr(metric, "model_dump"):
+                data = metric.model_dump()
+            else:
+                data = vars(metric)
+            serialized = await safe_json_serialize(data)
             await self.redis_handler.set_key(
                 "agent_metrics",
                 key,
                 serialized,
-                ttl=3600,  # 1 hour TTL
+                ttl=3600,
             )
         except Exception as e:
             self.logger.warning(f"Failed to persist metric to Redis: {str(e)}")
@@ -212,7 +203,6 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            # Load events from Redis
             event_keys = await self.redis_handler.keys("agent_events:*") or []
             for key in event_keys:
                 try:
@@ -233,7 +223,6 @@ class EventBuffer(BufferProtocol):
                         f"Failed to load event from Redis key {key}: {e}"
                     )
 
-            # Load metrics from Redis
             metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
             for key in metric_keys:
                 try:
@@ -268,12 +257,9 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            # Get event keys and delete the oldest ones
             event_keys = await self.redis_handler.keys("agent_events:*") or []
-            # Sort keys to get oldest first (assuming timestamp-based keys)
             sorted_keys = sorted(event_keys)
 
-            # Delete the specified number of oldest events
             for i, key in enumerate(sorted_keys):
                 if i >= count:
                     break
@@ -289,12 +275,9 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            # Get metric keys and delete the oldest ones
             metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
-            # Sort keys to get oldest first (assuming timestamp-based keys)
             sorted_keys = sorted(metric_keys)
 
-            # Delete the specified number of oldest metrics
             for i, key in enumerate(sorted_keys):
                 if i >= count:
                     break
@@ -310,13 +293,11 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            # Clear all events
             event_keys = await self.redis_handler.keys("agent_events:*") or []
             for key in event_keys:
                 key_name = key.split(":")[-1]
                 await self.redis_handler.delete("agent_events", key_name)
 
-            # Clear all metrics
             metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
             for key in metric_keys:
                 key_name = key.split(":")[-1]

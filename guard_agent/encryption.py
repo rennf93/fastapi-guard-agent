@@ -44,10 +44,9 @@ class PayloadEncryptor:
         >>> # Send encrypted to core
     """
 
-    # GCM configuration
-    NONCE_SIZE = 12  # 96 bits (optimal for GCM)
-    TAG_SIZE = 16  # 128 bits (maximum security)
-    KEY_SIZE = 32  # 256 bits (AES-256)
+    NONCE_SIZE = 12
+    TAG_SIZE = 16
+    KEY_SIZE = 32
 
     def __init__(self, project_key: str) -> None:
         """
@@ -63,10 +62,8 @@ class PayloadEncryptor:
             raise EncryptionError("Project key cannot be empty")
 
         try:
-            # Decode project key
             key_bytes = base64.urlsafe_b64decode(project_key.encode())
 
-            # Validate key size
             if len(key_bytes) != self.KEY_SIZE:
                 raise EncryptionError(
                     f"Invalid key size: {len(key_bytes)} bytes, "
@@ -105,7 +102,6 @@ class PayloadEncryptor:
             >>> encrypted = encryptor.encrypt(data)
         """
         try:
-            # Serialize with deterministic ordering and datetime handling
             json_data = json.dumps(
                 data,
                 separators=(",", ":"),
@@ -113,19 +109,11 @@ class PayloadEncryptor:
                 default=_default_json_handler,
             )
 
-            # Generate random nonce (MUST be unique per encryption)
             nonce = os.urandom(self.NONCE_SIZE)
-
-            # Prepare associated data
             aad = associated_data.encode() if associated_data else None
-
-            # Encrypt with authentication
             encrypted = self._cipher.encrypt(nonce, json_data.encode(), aad)
-
-            # Combine nonce + ciphertext
             combined = nonce + encrypted
 
-            # Base64 encode for transmission
             return base64.urlsafe_b64encode(combined).decode()
 
         except Exception as e:
@@ -154,20 +142,14 @@ class PayloadEncryptor:
             >>> decrypted = encryptor.decrypt(encrypted_payload)
         """
         try:
-            # Decode from base64
             combined = base64.urlsafe_b64decode(encrypted_data.encode())
 
-            # Extract nonce and ciphertext
             nonce = combined[: self.NONCE_SIZE]
             ciphertext = combined[self.NONCE_SIZE :]
 
-            # Prepare associated data
             aad = associated_data.encode() if associated_data else None
-
-            # Decrypt with authentication verification
             decrypted = self._cipher.decrypt(nonce, ciphertext, aad)
 
-            # Parse JSON
             return json.loads(decrypted.decode())  # type: ignore[no-any-return]
 
         except Exception as e:
