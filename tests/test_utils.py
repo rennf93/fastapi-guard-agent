@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -77,9 +77,9 @@ class TestUtils:
     def test_get_current_timestamp(self) -> None:
         timestamp = get_current_timestamp()
         assert isinstance(timestamp, datetime)
-        assert timestamp.tzinfo == UTC
+        assert timestamp.tzinfo == timezone.utc
         # Check if it's close to now (within a small margin)
-        assert (datetime.now(UTC) - timestamp).total_seconds() < 1
+        assert (datetime.now(timezone.utc) - timestamp).total_seconds() < 1
 
     def test_calculate_backoff_delay(self) -> None:
         assert calculate_backoff_delay(0) == 1.0

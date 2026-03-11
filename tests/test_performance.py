@@ -1,7 +1,7 @@
 import asyncio
 import os
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import psutil
@@ -135,7 +135,7 @@ class TestPerformanceImpact:
 
         events = [
             SecurityEvent(
-                timestamp=datetime.fromtimestamp(time.time(), tz=UTC),
+                timestamp=datetime.fromtimestamp(time.time(), tz=timezone.utc),
                 event_type="ip_banned",
                 ip_address=f"192.168.1.{i % 255}",
                 action_taken="logged",
@@ -178,7 +178,7 @@ class TestPerformanceImpact:
 
         events = [
             SecurityEvent(
-                timestamp=datetime.fromtimestamp(time.time(), tz=UTC),
+                timestamp=datetime.fromtimestamp(time.time(), tz=timezone.utc),
                 event_type="rate_limited",
                 ip_address=f"192.168.1.{i % 255}",
                 action_taken="logged",
@@ -248,7 +248,7 @@ class TestPerformanceImpact:
             """Worker function to send events concurrently."""
             events = [
                 SecurityEvent(
-                    timestamp=datetime.fromtimestamp(time.time(), tz=UTC),
+                    timestamp=datetime.fromtimestamp(time.time(), tz=timezone.utc),
                     event_type="suspicious_request",
                     ip_address=f"192.168.{worker_id}.{i}",
                     action_taken="logged",

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 from urllib.parse import urlparse
 
@@ -144,7 +144,7 @@ class DynamicRules(BaseModel):
     rule_id: str = Field(default="default-rule", description="Unique rule ID")
     version: int = Field(default=1, description="Rule version number")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Rule creation/update timestamp",
     )
     expires_at: datetime | None = Field(

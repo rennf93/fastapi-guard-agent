@@ -1,6 +1,6 @@
 import base64
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
@@ -294,7 +294,7 @@ class TestDefaultJsonHandler:
 
     def test_datetime_serialization(self) -> None:
         """Test that datetime objects are serialized to ISO format."""
-        dt = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        dt = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         result = _default_json_handler(dt)
         assert result == "2024-01-01T12:00:00+00:00"
 

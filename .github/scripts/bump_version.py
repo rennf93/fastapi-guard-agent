@@ -22,7 +22,7 @@ import json
 import re
 import sys
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Resolve project root relative to this script's location
@@ -186,7 +186,7 @@ def update_versions_json(version: str) -> bool:
 def _insert_changelog_scaffold(path: Path, version: str, label: str) -> bool:
     """Insert a version scaffold block into a changelog file."""
     content = path.read_text()
-    today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+    today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
     header = f"v{version} ({today})"
 
     # Check if this version already has an entry

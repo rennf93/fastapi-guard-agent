@@ -4,7 +4,7 @@ import logging
 import time
 import uuid
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from guard_agent.models import AgentConfig
@@ -45,7 +45,7 @@ def hash_ip(ip: str, salt: str = "") -> str:
 
 def get_current_timestamp() -> datetime:
     """Get current UTC timestamp."""
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 def calculate_backoff_delay(

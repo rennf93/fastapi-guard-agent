@@ -329,7 +329,7 @@ class HTTPTransport(TransportProtocol):
         except httpx.HTTPError as e:
             self.logger.error(f"HTTP client error for {method} {url}: {str(e)}")
             raise
-        except TimeoutError as e:
+        except asyncio.TimeoutError as e:
             self.logger.error(f"Timeout error for {method} {url}: {str(e)}")
             raise
         except Exception as e:
