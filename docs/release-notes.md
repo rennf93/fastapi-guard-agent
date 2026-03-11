@@ -3,15 +3,15 @@ Release Notes
 
 ___
 
-v1.1.2 (2026-03-11)
+v1.1.1 (2026-03-11)
 -------------------
 
-Bug Fixes (v1.1.2)
+Bug Fixes (v1.1.1)
 -------------------
 - Fixed misalignment on documentation headers and model parameters.
 - Added support for Python 3.14.
 
-Maintenance (v1.1.2)
+Maintenance (v1.1.1)
 --------------------
 - Code alignment and cleanup.
 
