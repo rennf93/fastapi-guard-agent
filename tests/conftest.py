@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 # Monkey-patch the guard library to include AgentConfig import
@@ -81,7 +81,7 @@ def buffer(agent_config: AgentConfig) -> EventBuffer:
 def security_event() -> SecurityEvent:
     """Create a sample security event."""
     return SecurityEvent(
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         event_type="ip_banned",
         ip_address="127.0.0.1",
         action_taken="block",
@@ -93,7 +93,7 @@ def security_event() -> SecurityEvent:
 def security_metric() -> SecurityMetric:
     """Create a sample security metric."""
     return SecurityMetric(
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         metric_type="request_count",
         value=1.0,
     )

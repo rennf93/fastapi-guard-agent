@@ -25,10 +25,10 @@ class GuardAgentHandler(AgentHandlerProtocol):
     Implements singleton pattern with Redis integration and automatic flushing.
     """
 
-    _instance: "GuardAgentHandler | None" = None
+    _instance: GuardAgentHandler | None = None
     _initialized: bool
 
-    def __new__(cls, config: AgentConfig) -> "GuardAgentHandler":
+    def __new__(cls, config: AgentConfig) -> GuardAgentHandler:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import urlparse
 
@@ -144,7 +144,7 @@ class DynamicRules(BaseModel):
     rule_id: str = Field(default="default-rule", description="Unique rule ID")
     version: int = Field(default=1, description="Rule version number")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="Rule creation/update timestamp",
     )
     expires_at: datetime | None = Field(
@@ -228,6 +228,4 @@ class EventBatch(BaseModel):
     batch_id: str
     created_at: datetime
     compressed: bool = Field(default=False)
-    agent_version: str | None = Field(
-        default=None, description="Agent version string"
-    )
+    agent_version: str | None = Field(default=None, description="Agent version string")

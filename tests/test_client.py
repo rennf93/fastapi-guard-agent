@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Generator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,7 +18,7 @@ from guard_agent.protocols import AgentHandlerProtocol
 
 
 @pytest.fixture(autouse=True)
-def reset_singleton() -> Generator[None, None, None]:
+def reset_singleton() -> Generator[None]:
     """Reset GuardAgentHandler singleton before each test."""
     GuardAgentHandler._instance = None
     yield
@@ -72,7 +72,7 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
         event = SecurityEvent(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type="ip_banned",
             ip_address="192.168.1.1",
             action_taken="banned",
@@ -88,7 +88,7 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(config)
         handler.buffer = AsyncMock()
         event = SecurityEvent(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type="ip_banned",
             ip_address="1.1.1.1",
             action_taken="block",
@@ -107,7 +107,7 @@ class TestGuardAgentHandler:
         handler.buffer = AsyncMock()
         handler.buffer.add_event.side_effect = Exception("Buffer is full")
         event = SecurityEvent(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type="ip_banned",
             ip_address="1.1.1.1",
             action_taken="block",
@@ -123,7 +123,7 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
         metric = SecurityMetric(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             metric_type="request_count",
             value=42.0,
         )
@@ -137,7 +137,7 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(config)
         handler.buffer = AsyncMock()
         metric = SecurityMetric(
-            timestamp=datetime.now(timezone.utc), metric_type="request_count", value=1
+            timestamp=datetime.now(UTC), metric_type="request_count", value=1
         )
 
         await handler.send_metric(metric)
@@ -152,7 +152,7 @@ class TestGuardAgentHandler:
         handler.buffer = AsyncMock()
         handler.buffer.add_metric.side_effect = Exception("Buffer is full")
         metric = SecurityMetric(
-            timestamp=datetime.now(timezone.utc), metric_type="request_count", value=1
+            timestamp=datetime.now(UTC), metric_type="request_count", value=1
         )
 
         await handler.send_metric(metric)
@@ -217,7 +217,7 @@ class TestGuardAgentHandler:
         handler.transport = AsyncMock()
         test_events = [
             SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 event_type="ip_banned",
                 ip_address="192.168.1.1",
                 action_taken="banned",
@@ -226,7 +226,7 @@ class TestGuardAgentHandler:
         ]
         test_metrics = [
             SecurityMetric(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 metric_type="request_count",
                 value=1.0,
             )
@@ -308,7 +308,7 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(agent_config)
         cached_rules = DynamicRules(ttl=300)
         handler._cached_rules = cached_rules
-        handler._rules_last_update = datetime.now(timezone.utc).timestamp()
+        handler._rules_last_update = datetime.now(UTC).timestamp()
         handler.transport = AsyncMock()
 
         rules = await handler.get_dynamic_rules()
@@ -327,7 +327,7 @@ class TestGuardAgentHandler:
         handler.transport.fetch_dynamic_rules.return_value = new_rules
 
         handler._cached_rules = DynamicRules(ttl=1)
-        handler._rules_last_update = datetime.now(timezone.utc).timestamp() - 2
+        handler._rules_last_update = datetime.now(UTC).timestamp() - 2
 
         rules = await handler.get_dynamic_rules()
 
@@ -343,7 +343,7 @@ class TestGuardAgentHandler:
         handler = GuardAgentHandler(agent_config)
         cached_rules = DynamicRules(ttl=300)
         handler._cached_rules = cached_rules
-        handler._rules_last_update = datetime.now(timezone.utc).timestamp()
+        handler._rules_last_update = datetime.now(UTC).timestamp()
         handler.transport = AsyncMock()
         handler.transport.fetch_dynamic_rules.side_effect = Exception("Fetch failed")
 
@@ -803,7 +803,7 @@ class TestGuardAgentHandler:
             "SecurityEvent",
             (),
             {
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "event_type": "pattern_anomaly_timing",
                 "ip_address": "10.0.0.1",
                 "action_taken": "logged",
@@ -829,7 +829,7 @@ class TestGuardAgentHandler:
             "SecurityMetric",
             (),
             {
-                "timestamp": datetime.now(timezone.utc),
+                "timestamp": datetime.now(UTC),
                 "metric_type": "request_count",
                 "value": 42.0,
             },

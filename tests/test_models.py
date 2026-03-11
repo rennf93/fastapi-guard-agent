@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -87,7 +87,7 @@ class TestSecurityEvent:
 
     def test_valid_event(self) -> None:
         """Test creating a valid security event."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         event = SecurityEvent(
             timestamp=timestamp,
             event_type="ip_banned",
@@ -105,7 +105,7 @@ class TestSecurityEvent:
     def test_dynamic_event_type(self) -> None:
         """Test that dynamic event types are accepted (parent uses f-strings)."""
         event = SecurityEvent(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type="pattern_anomaly_timing",
             ip_address="192.168.1.1",
             action_taken="logged",
@@ -116,7 +116,7 @@ class TestSecurityEvent:
     def test_event_without_ip_and_reason(self) -> None:
         """Test creating event without ip_address/reason (security_headers_handler)."""
         event = SecurityEvent(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type="security_headers_applied",
         )
         assert event.ip_address == ""
@@ -126,7 +126,7 @@ class TestSecurityEvent:
     def test_event_with_extra_fields(self) -> None:
         """Test that extra fields are allowed (parent passes **kwargs)."""
         event = SecurityEvent(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             event_type="ip_banned",
             ip_address="10.0.0.1",
             action_taken="banned",
@@ -143,7 +143,7 @@ class TestSecurityMetric:
 
     def test_valid_metric(self) -> None:
         """Test creating a valid security metric."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         metric = SecurityMetric(
             timestamp=timestamp,
             metric_type="request_count",
@@ -160,7 +160,7 @@ class TestSecurityMetric:
         """Test that invalid metric type raises validation error."""
         with pytest.raises(ValidationError):
             SecurityMetric(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 metric_type="invalid_metric",
                 value=1.0,
             )
@@ -206,7 +206,7 @@ class TestAgentStatus:
 
     def test_valid_status(self) -> None:
         """Test creating a valid agent status."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         status = AgentStatus(
             timestamp=timestamp,
             status="healthy",
@@ -229,7 +229,7 @@ class TestEventBatch:
 
     def test_valid_batch(self) -> None:
         """Test creating a valid event batch."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         events = [
             SecurityEvent(
                 timestamp=timestamp,

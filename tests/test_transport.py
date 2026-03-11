@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -43,7 +43,7 @@ class TestHTTPTransport:
 
         events = [
             SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 event_type="ip_banned",
                 ip_address="192.168.1.1",
                 action_taken="banned",
@@ -72,7 +72,7 @@ class TestHTTPTransport:
 
         events = [
             SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 event_type="ip_banned",
                 ip_address="192.168.1.1",
                 action_taken="banned",
@@ -99,7 +99,7 @@ class TestHTTPTransport:
         ):
             events = [
                 SecurityEvent(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     event_type="ip_banned",
                     ip_address="192.168.1.1",
                     action_taken="banned",
@@ -126,7 +126,7 @@ class TestHTTPTransport:
         ):
             metrics = [
                 SecurityMetric(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     metric_type="request_count",
                     value=1.0,
                 )
@@ -185,7 +185,7 @@ class TestHTTPTransport:
 
         events = [
             SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 event_type="ip_banned",
                 ip_address="192.168.1.1",
                 action_taken="banned",
@@ -212,7 +212,7 @@ class TestHTTPTransport:
 
         events = [
             SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 event_type="ip_banned",
                 ip_address="192.168.1.1",
                 action_taken="banned",
@@ -243,7 +243,7 @@ class TestHTTPTransport:
         ) as mock_make_request:
             events = [
                 SecurityEvent(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     event_type="ip_banned",
                     ip_address="192.168.1.1",
                     action_taken="banned",
@@ -343,7 +343,7 @@ class TestHTTPTransport:
         mock_client.post.return_value = mock_response
 
         status = AgentStatus(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             status="healthy",
             uptime=3600.0,
             events_sent=100,
@@ -484,7 +484,7 @@ class TestHTTPTransport:
 
                 events = [
                     SecurityEvent(
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         event_type="ip_banned",
                         ip_address="192.168.1.1",
                         action_taken="banned",
@@ -507,7 +507,7 @@ class TestHTTPTransport:
 
         events = [
             SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 event_type="ip_banned",
                 ip_address="192.168.1.1",
                 action_taken="banned",
@@ -559,7 +559,7 @@ class TestHTTPTransport:
         """Test _make_request with asyncio.TimeoutError."""
         transport = HTTPTransport(agent_config)
         transport._client = mock_client
-        mock_client.post.side_effect = asyncio.TimeoutError("Test Timeout Error")
+        mock_client.post.side_effect = TimeoutError("Test Timeout Error")
 
         with pytest.raises(asyncio.TimeoutError):
             await transport._make_request("POST", "/test", {"key": "value"})
@@ -1079,7 +1079,7 @@ class TestHTTPTransportEncryption:
 
         events = [
             SecurityEvent(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 event_type="ip_banned",
                 ip_address="192.168.1.1",
                 action_taken="banned",
