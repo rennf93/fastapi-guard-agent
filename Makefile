@@ -1,5 +1,5 @@
 # Supported Python versions
-PYTHON_VERSIONS = 3.10 3.11 3.12 3.13
+PYTHON_VERSIONS = 3.10 3.11 3.12 3.13 3.14
 DEFAULT_PYTHON = 3.10
 
 # Install dependencies
@@ -57,7 +57,7 @@ test:
 
 # Run All Python versions
 .PHONY: test-all
-test-all: test-3.10 test-3.11 test-3.12 test-3.13
+test-all: test-3.10 test-3.11 test-3.12 test-3.13 test-3.14
 
 # Python 3.10
 .PHONY: test-3.10
@@ -95,6 +95,15 @@ test-3.13:
 	@docker compose down --rmi all --remove-orphans -v
 	@docker system prune -f
 
+# Python 3.14
+.PHONY: test-3.14
+test-3.14:
+	@docker compose down -v fastapi-guard-agent
+	@COMPOSE_BAKE=true PYTHON_VERSION=3.14 docker compose build fastapi-guard-agent
+	@PYTHON_VERSION=3.14 docker compose run --rm fastapi-guard-agent pytest -v --cov=.
+	@docker compose down --rmi all --remove-orphans -v
+	@docker system prune -f
+
 # Local testing
 .PHONY: local-test
 local-test:
@@ -129,32 +138,18 @@ prune:
 clean:
 	@find . | grep -E "(__pycache__|\\.pyc|\\.pyo|\\.pytest_cache|\\.ruff_cache|\\.mypy_cache)" | xargs rm -rf
 
+# Version Management
+.PHONY: bump-version
+bump-version:
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make bump-version VERSION=x.y.z"; exit 1; fi
+	@uv run python .github/scripts/bump_version.py $(VERSION)
+
 # Help
 .PHONY: help
-help:
-	@echo "Available commands:"
-	@echo "  make install            	   - Install dependencies"
-	@echo "  make install-dev        	   - Install dev dependencies"
-	@echo "  make lock               	   - Update dependencies"
-	@echo "  make start-example      	   - Start example application with docker compose"
-	@echo "  make run-example        	   - Build and run example container directly"
-	@echo "  make stop               	   - Stop all containers and clean up resources"
-	@echo "  make restart            	   - Restart example application"
-	@echo "  make lint               	   - Run linting checks"
-	@echo "  make fix                	   - Auto-fix linting issues"
-	@echo "  make test               	   - Run tests with Python $(DEFAULT_PYTHON)"
-	@echo "  make test-all           	   - Run tests with all Python versions ($(PYTHON_VERSIONS))"
-	@echo "  make test-<version>     	   - Run tests with specific Python version (e.g., make test-3.10)"
-	@echo "  make local-test         	   - Run tests locally"
-	@echo "  make stress-test        	   - Run stress test"
-	@echo "  make high-load-stress-test    - Run high-load stress test"
-	@echo "  make serve-docs       		   - Serve documentation"
-	@echo "  make lint-docs        		   - Run markdownlint on documentation"
-	@echo "  make fix-docs         		   - Auto-fix markdownlint issues"
-	@echo "  make prune            		   - Prune docker resources"
-	@echo "  make clean                    - Clean cache files"
-	@echo "  make help             		   - Show this help message"
-	@echo "  make show-python-versions     - Show supported Python versions"
+help: ## Show available commands
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+.DEFAULT_GOAL := help
 
 # Python versions list
 .PHONY: show-python-versions

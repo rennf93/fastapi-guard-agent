@@ -3,6 +3,19 @@ Release Notes
 
 ___
 
+v1.1.1 (2026-03-11)
+-------------------
+
+Bug Fixes (v1.1.1)
+-------------------
+- Fixed misalignment on documentation headers and model parameters.
+
+Maintenance (v1.1.1)
+--------------------
+- Code alignment and cleanup.
+
+___
+
 v1.1.0 (2025-10-14)
 -------------------
 
