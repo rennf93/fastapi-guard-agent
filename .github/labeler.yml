@@ -1,0 +1,83 @@
+"area: client":
+  - changed-files:
+      - any-glob-to-any-file:
+          - guard_agent/client.py
+          - tests/test_client.py
+
+"area: buffer":
+  - changed-files:
+      - any-glob-to-any-file:
+          - guard_agent/buffer.py
+          - tests/test_buffer.py
+
+"area: transport":
+  - changed-files:
+      - any-glob-to-any-file:
+          - guard_agent/transport.py
+          - tests/test_transport.py
+
+"area: encryption":
+  - changed-files:
+      - any-glob-to-any-file:
+          - guard_agent/encryption.py
+          - tests/test_encryption.py
+
+"area: models":
+  - changed-files:
+      - any-glob-to-any-file:
+          - guard_agent/models.py
+          - tests/test_models.py
+
+"area: protocols":
+  - changed-files:
+      - any-glob-to-any-file:
+          - guard_agent/protocols.py
+
+"area: utils":
+  - changed-files:
+      - any-glob-to-any-file:
+          - guard_agent/utils.py
+          - tests/test_utils.py
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - tests/**
+
+examples:
+  - changed-files:
+      - any-glob-to-any-file:
+          - examples/**
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+          - mkdocs.yml
+          - README.md
+          - CHANGELOG.md
+          - CONTRIBUTING.md
+          - SECURITY.md
+          - CODE_OF_CONDUCT.md
+          - LICENSE
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - .pre-commit-config.yaml
+
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - Makefile
+          - Dockerfile
+          - compose.yml
+          - setup.py
+          - MANIFEST.in
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - pyproject.toml
+          - uv.lock
