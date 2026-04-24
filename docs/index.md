@@ -141,14 +141,18 @@ ___
 
 ## Installation
 
-Install Guard Agent via pip or uv:
+```bash
+uv add guard-agent
+```
+
+Alternatives:
 
 ```bash
-pip install guard-agent
+poetry add guard-agent
 ```
 
 ```bash
-uv add guard-agent
+pip install guard-agent
 ```
 
 The legacy `fastapi-guard-agent` name is still published as a meta-package that installs `guard-agent` transitively — existing installs keep working, but new projects should use `guard-agent` directly.

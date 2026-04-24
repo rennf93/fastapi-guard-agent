@@ -42,6 +42,11 @@ theme:
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Adapters:
+    - FastAPI: adapters/fastapi.md
+    - Flask: adapters/flask.md
+    - Django: adapters/django.md
+    - Tornado: adapters/tornado.md
   - Tutorial:
     - Getting Started: tutorial/getting-started.md
     - Configuration: tutorial/configuration.md

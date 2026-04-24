@@ -4,7 +4,7 @@
 
 As of `guard-agent` 2.0.0, the telemetry agent previously distributed under the name `fastapi-guard-agent` has been repositioned as a framework-agnostic agent serving `fastapi-guard`, `flaskapi-guard`, `djangoapi-guard`, and `tornadoapi-guard`.
 
-This PyPI entry (`fastapi-guard-agent==1.2.0`) is a meta-package: installing it transitively installs `guard-agent>=2.0.0,<3.0.0`. It exists so that existing `pip install fastapi-guard-agent` commands in scripts, Dockerfiles, and lockfiles continue to resolve to the renamed distribution.
+This PyPI entry (`fastapi-guard-agent==1.2.0`) is a meta-package: installing it transitively installs `guard-agent>=2.0.0,<3.0.0`. It exists so that existing install commands referencing `fastapi-guard-agent` in scripts, Dockerfiles, and lockfiles continue to resolve to the renamed distribution.
 
 ## Migration
 
@@ -14,14 +14,24 @@ The Python import path has **not** changed:
 from guard_agent import GuardAgentHandler, AgentConfig  # still works
 ```
 
-Only the install command needs updating at your leisure:
+Only the install command needs updating at your leisure. With uv:
 
 ```bash
 # Old (still works via this meta-package)
-pip install fastapi-guard-agent
+uv add fastapi-guard-agent
 
 # Preferred going forward
-pip install guard-agent
+uv add guard-agent
+```
+
+Equivalent in other package managers:
+
+```bash
+# Poetry
+poetry remove fastapi-guard-agent && poetry add guard-agent
+
+# pip
+pip uninstall fastapi-guard-agent && pip install guard-agent
 ```
 
 ## Links

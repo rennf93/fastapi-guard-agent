@@ -1,6 +1,6 @@
 [project]
 name = "guard-agent"
-version = "2.0.0"
+version = "2.1.0"
 description = "Framework-agnostic telemetry and monitoring agent for the Guard security ecosystem (fastapi-guard, flaskapi-guard, djangoapi-guard, tornadoapi-guard)"
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
@@ -41,8 +41,12 @@ Changelog = "https://github.com/rennf93/guard-agent/blob/master/CHANGELOG.md"
 [project.optional-dependencies]
 dev = [
     "black",
+    "django",
+    "djapi-guard>=2.0.0",
     "fastapi",
     "fastapi-guard>=5.0.0",
+    "flask",
+    "flaskapi-guard>=2.0.0",
     "httpx",
     "mkdocs",
     "mkdocstrings",
@@ -57,6 +61,9 @@ dev = [
     "pytest-cov",
     "pytest-mock",
     "ruff",
+    "tornado",
+    # tornadoapi-guard: not yet published on PyPI (only a yanked 0.0.1).
+    # Re-enable here once the adapter ships a 1.0.0+ release to PyPI.
     "types-psutil",
     "types-setuptools",
 ]

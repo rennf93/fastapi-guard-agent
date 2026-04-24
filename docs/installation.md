@@ -39,28 +39,28 @@ The following dependencies are automatically managed during installation:
 
 ## Installation Methods
 
-### Standard Installation
+### Standard Installation (uv)
 
 Install Guard Agent together with the adapter for your framework:
 
 ```bash
 # FastAPI
-pip install fastapi-guard guard-agent
+uv add fastapi-guard guard-agent
 
 # Flask
-pip install flaskapi-guard guard-agent
+uv add flaskapi-guard guard-agent
 
 # Django
-pip install djangoapi-guard guard-agent
+uv add djapi-guard guard-agent
 
 # Tornado
-pip install tornadoapi-guard guard-agent
+uv add tornadoapi-guard guard-agent
 ```
 
 For standalone agent deployments (direct wire protocol, no adapter):
 
 ```bash
-pip install guard-agent
+uv add guard-agent
 ```
 
 ### Version-Specific Installation
@@ -68,18 +68,12 @@ pip install guard-agent
 Pin to a specific version for reproducible deployments:
 
 ```bash
-pip install guard-agent==2.0.0
+uv add "guard-agent==2.1.0"
 ```
 
-### Modern Python Packaging
+### Alternative Package Managers
 
-#### uv Integration
-
-```bash
-uv add guard-agent
-```
-
-#### Poetry Integration
+#### Poetry
 
 ```bash
 poetry add guard-agent
@@ -91,12 +85,18 @@ For development dependencies:
 poetry add --group dev guard-agent
 ```
 
+#### pip
+
+```bash
+pip install guard-agent
+```
+
 #### pip-tools Workflow
 
 Define in `requirements.in`:
 
 ```text
-guard-agent==2.0.0
+guard-agent==2.1.0
 ```
 
 Generate locked requirements:
@@ -113,7 +113,7 @@ For contributors and advanced users requiring source access:
 ```bash
 git clone https://github.com/rennf93/guard-agent.git
 cd guard-agent
-pip install -e ".[dev]"
+uv sync --extra dev
 ```
 
 Install pre-commit hooks for code quality:
@@ -131,10 +131,14 @@ Optimized multi-stage build for minimal image size:
 ```dockerfile
 FROM python:3.11-slim as builder
 
-# Build dependencies
+# Install uv
+RUN pip install --user uv
+ENV PATH=/root/.local/bin:$PATH
+
+# Sync project dependencies
 WORKDIR /build
-COPY requirements.txt .
-RUN pip install --user -r requirements.txt guard-agent
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --frozen --no-dev
 
 FROM python:3.11-slim
 
@@ -290,8 +294,9 @@ async def test():
 
 3. Reinstall the package:
    ```bash
-   pip uninstall guard-agent
-   pip install guard-agent
+   uv remove guard-agent && uv add guard-agent
+   # or with pip:
+   # pip uninstall guard-agent && pip install guard-agent
    ```
 
 ### Redis Connectivity Issues
@@ -347,21 +352,21 @@ async def test():
 **Symptom**: `PermissionError` during package installation
 
 **Resolution Strategies**:
-1. Use `--user` flag for user-level installation:
+1. Use a project-local virtual environment (recommended — this is what `uv` does by default):
    ```bash
-   pip install --user guard-agent
+   uv sync
    ```
 
-2. Use virtual environment (recommended):
+2. With pip, use a manual venv:
    ```bash
-   python -m venv venv
-   source venv/bin/activate
+   python -m venv .venv
+   source .venv/bin/activate
    pip install guard-agent
    ```
 
-3. On systems with permission issues, consider using `sudo` (not recommended):
+3. With pip, user-scoped install as a last resort:
    ```bash
-   sudo pip install guard-agent
+   pip install --user guard-agent
    ```
 
 ## Post-Installation Guidance

@@ -3,6 +3,22 @@ Release Notes
 
 ___
 
+v2.1.0 (2026-04-24)
+-------------------
+
+Multi-Adapter Coverage (v2.1.0)
+-------------------------------
+- Added per-adapter integration smoke tests: `tests/test_adapter_fastapi.py`, `test_adapter_flask.py`, `test_adapter_django.py`. Each verifies `SecurityConfig.to_agent_config()` roundtrip and request delivery through the adapter's middleware with `enable_agent=True`.
+- Added per-adapter documentation pages under `docs/adapters/`: FastAPI, Flask, Django, Tornado. Each page covers install, minimal example, and agent wiring specific to that framework.
+- `mkdocs.yml` navigation updated with a new top-level **Adapters** section.
+
+Dependency Changes (v2.1.0)
+---------------------------
+- Added `django`, `djapi-guard>=2.0.0`, `flask`, `flaskapi-guard>=2.0.0`, `tornado` to `[project.optional-dependencies].dev` so the test suite can exercise every adapter.
+- `tornadoapi-guard` is not yet included in dev extras — it has not been published to PyPI (only a yanked 0.0.1 exists). Integration tests for Tornado are stubbed with `pytest.mark.skip` in `tests/test_adapter_tornado.py`. Re-enable once the adapter ships a 1.0.0+ release.
+
+___
+
 v2.0.0 (2026-04-24)
 -------------------
 
@@ -29,8 +45,9 @@ Breaking Changes (v2.0.0)
 Migration Guide (v2.0.0)
 ------------------------
 - Existing code: no changes.
-- Install commands: replace `pip install fastapi-guard-agent` with `pip install guard-agent` at your leisure — both resolve to the same underlying package.
-- Lockfiles: running `uv lock` or `pip-compile` after bumping will transparently update entries to `guard-agent`.
+- Install commands (uv): replace `uv add fastapi-guard-agent` with `uv add guard-agent` at your leisure — both resolve to the same underlying package.
+- Poetry / pip equivalents: `poetry add guard-agent` / `pip install guard-agent`.
+- Lockfiles: running `uv lock`, `poetry lock`, or `pip-compile` after bumping will transparently update entries to `guard-agent`.
 
 ___
 

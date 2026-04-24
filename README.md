@@ -110,13 +110,17 @@ Installation
 ------------
 
 ```bash
-pip install guard-agent
+uv add guard-agent
 ```
 
-Or with `uv`:
+Alternatives:
 
 ```bash
-uv add guard-agent
+poetry add guard-agent
+```
+
+```bash
+pip install guard-agent
 ```
 
 > The legacy name `fastapi-guard-agent` is still published as a meta-package that installs `guard-agent` transitively — existing installs keep working, but new projects should use `guard-agent` directly.
@@ -124,7 +128,7 @@ uv add guard-agent
 Optional extras:
 
 ```bash
-pip install "guard-agent[redis]"    # Enable Redis-backed event buffer
+uv add "guard-agent[redis]"    # Enable Redis-backed event buffer
 ```
 
 ---
@@ -132,42 +136,71 @@ pip install "guard-agent[redis]"    # Enable Redis-backed event buffer
 Getting Started
 ---------------
 
-Guard Agent is embedded directly by your framework's adapter — you enable it through the adapter's security config rather than importing it manually.
+Guard Agent is embedded by your framework's adapter — you enable it through the adapter's `SecurityConfig` and drive its lifecycle appropriately for that framework. Each adapter's doc page covers the exact pattern; the FastAPI pattern below is the canonical async integration.
 
 ### FastAPI example
 
-```python
-from fastapi import FastAPI
-from guard import SecurityConfig, SecurityMiddleware
+FastAPI needs a `lifespan` context manager to start and stop the agent on the event loop:
 
-config = SecurityConfig(
+```python
+import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from guard import SecurityConfig, SecurityDecorator, SecurityMiddleware
+from guard_agent import AgentConfig, guard_agent
+
+api_key = os.environ.get("GUARD_API_KEY", "")
+project_id = os.environ.get("GUARD_PROJECT_ID", "")
+core_url = os.environ.get("GUARD_CORE_URL", "https://api.guard-core.com")
+
+security_config = SecurityConfig(
     auto_ban_threshold=5,
     auto_ban_duration=300,
-
-    # Enable agent telemetry
-    enable_agent=True,
-    agent_api_key="YOUR_API_KEY",
-    agent_project_id="YOUR_PROJECT_ID",
-    agent_endpoint="https://api.guard-core.com",
-
-    agent_buffer_size=100,
-    agent_flush_interval=30,
-    agent_enable_events=True,
-    agent_enable_metrics=True,
-
-    enable_dynamic_rules=True,
-    dynamic_rule_interval=300,
+    enable_agent=bool(api_key),
+    agent_api_key=api_key,
+    agent_endpoint=core_url,
+    agent_project_id=project_id,
+    agent_buffer_size=5000,
+    agent_flush_interval=2,
+    enable_dynamic_rules=bool(api_key),
+    dynamic_rule_interval=60,
 )
 
-app = FastAPI()
-SecurityMiddleware(app, config=config)
+agent_config = AgentConfig(
+    api_key=api_key,
+    endpoint=core_url,
+    project_id=project_id,
+    buffer_size=5000,
+    flush_interval=2,
+)
+
+agent = guard_agent(agent_config) if api_key else None
+guard = SecurityDecorator(security_config)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    if agent:
+        await agent.start()
+    yield
+    if agent:
+        await agent.stop()
+
+
+app = FastAPI(lifespan=lifespan)
+app.add_middleware(SecurityMiddleware, config=security_config)
+SecurityMiddleware.configure_cors(app, security_config)
+app.state.guard_decorator = guard
+
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     return {"message": "Hello World"}
 ```
 
-Flask, Django, and Tornado adapters expose analogous `SecurityConfig` interfaces — see each adapter's README for framework-native examples.
+Flask is synchronous and handles start/stop internally; Tornado uses `await security_middleware.initialize()` / `reset()`; Django wires the middleware via settings. See [docs/adapters](https://rennf93.github.io/guard-agent/latest/adapters/fastapi/) for the canonical pattern per framework.
 
 With `enable_agent=True`, the agent automatically:
 
@@ -236,10 +269,20 @@ To switch your install command:
 
 ```bash
 # Old (still works via shim)
-pip install fastapi-guard-agent
+uv add fastapi-guard-agent
 
 # New (preferred)
-pip install guard-agent
+uv add guard-agent
+```
+
+Equivalent in other package managers:
+
+```bash
+# Poetry
+poetry remove fastapi-guard-agent && poetry add guard-agent
+
+# pip (or pip-tools)
+pip uninstall fastapi-guard-agent && pip install guard-agent
 ```
 
 The legacy `fastapi-guard-agent` name is maintained as a meta-package pointing to `guard-agent>=2.0.0,<3.0.0`, so pinned environments keep resolving correctly.

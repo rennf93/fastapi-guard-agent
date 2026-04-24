@@ -11,6 +11,8 @@ documentation — Guard Agent itself is framework-agnostic.
 """
 
 import asyncio
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -96,13 +98,20 @@ async def basic_agent_usage() -> None:
 
 
 def create_fastapi_app_with_agent() -> FastAPI:
-    """Example of integrating Guard Agent with the FastAPI adapter (RECOMMENDED)."""
+    """Example of integrating Guard Agent with the FastAPI adapter (RECOMMENDED).
+
+    Uses the canonical pattern from ``guard-core-app/examples/app.py``:
+    explicit ``AgentConfig`` + ``guard_agent()`` + FastAPI ``lifespan`` context
+    manager to drive ``agent.start()`` / ``agent.stop()`` on the event loop.
+    """
     print("\n=== fastapi-guard + Guard Agent Integration (Recommended) ===")
 
-    app = FastAPI(title="Guard Agent Example (FastAPI)")
+    api_key = "demo-api-key-12345"
+    project_id = "fastapi-demo"
+    endpoint = "https://api.guard-core.com"
 
-    # Configure FastAPI Guard with agent enabled
-    config = SecurityConfig(
+    # Configure the security middleware (includes agent_* fields)
+    security_config = SecurityConfig(
         # Basic security settings
         auto_ban_threshold=5,
         auto_ban_duration=300,
@@ -111,25 +120,44 @@ def create_fastapi_app_with_agent() -> FastAPI:
         rate_limit_window=60,
         # Enable agent for telemetry
         enable_agent=True,
-        agent_api_key="demo-api-key-12345",
-        agent_project_id="fastapi-demo",
-        agent_endpoint="https://api.guard-core.com",
-        # Agent configuration
+        agent_api_key=api_key,
+        agent_project_id=project_id,
+        agent_endpoint=endpoint,
+        # Agent buffer tuning (mirrored on the explicit AgentConfig below)
         agent_buffer_size=50,
         agent_flush_interval=30,
         agent_enable_events=True,
         agent_enable_metrics=True,
-        # Enable dynamic rules from SaaS
+        # Dynamic rules from the dashboard
         enable_dynamic_rules=True,
         dynamic_rule_interval=300,
     )
 
-    # Add security middleware - agent starts automatically
-    middleware = SecurityMiddleware(app, config=config)
+    # Explicit AgentConfig — the guard_agent() factory is a singleton, so
+    # this produces the same handler the middleware uses internally.
+    # Creating it here gives us a reference for lifespan management.
+    agent_config = AgentConfig(
+        api_key=api_key,
+        endpoint=endpoint,
+        project_id=project_id,
+        buffer_size=50,
+        flush_interval=30,
+    )
+    agent = guard_agent(agent_config)
 
-    # Create decorator instance for enhanced security
-    guard = SecurityDecorator(config)
-    middleware.set_decorator_handler(guard)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+        """Drive the agent lifecycle on the FastAPI event loop."""
+        await agent.start()
+        yield
+        await agent.stop()
+
+    app = FastAPI(title="Guard Agent Example (FastAPI)", lifespan=lifespan)
+
+    # Attach middleware and decorator
+    app.add_middleware(SecurityMiddleware, config=security_config)
+    guard = SecurityDecorator(security_config)
+    app.state.guard_decorator = guard
 
     @app.get("/")
     async def root() -> dict[str, str]:
