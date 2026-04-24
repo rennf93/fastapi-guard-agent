@@ -1,16 +1,10 @@
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
-# Monkey-patch the guard library to include AgentConfig import
-# This is needed because the guard library's SecurityConfig.to_agent_config()
-# method references AgentConfig without importing it
-import guard.models
 import pytest
 
 from guard_agent.buffer import EventBuffer
 from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric
-
-setattr(guard.models, "AgentConfig", AgentConfig)  # noqa: B010
 
 
 @pytest.fixture

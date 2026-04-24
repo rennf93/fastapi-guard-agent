@@ -36,7 +36,7 @@ jobs:
           python-version: '3.10'
       - run: pip install uv
       - run: uv sync --extra dev
-      - run: uv run pre-commit run --all-files
+      - run: uv run --extra dev pre-commit run --all-files
 
   test:
     runs-on: ubuntu-latest
@@ -107,7 +107,7 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest -v --cov=guard_agent
+          uv run --extra dev pytest -v --cov=guard_agent
 
       - name: Notify Success on Slack Channel
         uses: rennf93/good-comms@master

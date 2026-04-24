@@ -53,7 +53,7 @@ jobs:
       - name: Run pre-commit checks
         id: precommit
         run: |
-          uv run pre-commit run --all-files > precommit_output.txt 2>&1
+          uv run --extra dev pre-commit run --all-files > precommit_output.txt 2>&1
           EXIT_CODE=$?
 
           OUTPUT=$(cat precommit_output.txt)

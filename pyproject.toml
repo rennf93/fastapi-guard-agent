@@ -42,7 +42,7 @@ Changelog = "https://github.com/rennf93/guard-agent/blob/master/CHANGELOG.md"
 dev = [
     "black",
     "fastapi",
-    "fastapi-guard",
+    "fastapi-guard>=5.0.0",
     "httpx",
     "mkdocs",
     "mkdocstrings",
