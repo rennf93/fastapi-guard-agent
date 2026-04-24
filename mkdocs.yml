@@ -36,8 +36,8 @@ theme:
     - toc.follow
   icon:
     repo: fontawesome/brands/github
-  logo: assets/logo.svg
-  favicon: assets/favicon.png
+  logo: assets/guard_core_logo.svg
+  favicon: assets/guard_core_favicon.png
 
 nav:
   - Home: index.md
@@ -149,7 +149,7 @@ extra:
     - property: og:description
       content: Framework-agnostic telemetry and monitoring agent for the Guard security ecosystem (fastapi-guard, flaskapi-guard, djangoapi-guard, tornadoapi-guard).
     - property: og:image
-      content: https://rennf93.github.io/guard-agent/assets/big_logo.svg
+      content: https://rennf93.github.io/guard-agent/assets/guard_agent_legend.svg
     - name: keywords
       content: fastapi, flask, django, tornado, security, middleware, python, telemetry, monitoring, ip control, rate limiting, penetration detection
 

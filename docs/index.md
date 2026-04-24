@@ -8,7 +8,7 @@ keywords: fastapi, flask, django, tornado, security, middleware, telemetry, moni
 
 <p align="center">
     <a href="https://rennf93.github.io/guard-agent/latest/">
-        <img src="https://rennf93.github.io/guard-agent/latest/assets/big_logo.svg" alt="Guard Agent">
+        <img src="https://rennf93.github.io/guard-agent/latest/assets/guard_agent_legend.svg" alt="Guard Agent">
     </a>
 </p>
 

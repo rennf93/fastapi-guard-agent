@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://rennf93.github.io/guard-agent/latest/">
-        <img src="https://rennf93.github.io/guard-agent/latest/assets/big_logo.svg" alt="Guard Agent">
+        <img src="https://rennf93.github.io/guard-agent/latest/assets/guard_agent_legend.svg" alt="Guard Agent">
     </a>
 </p>
 
@@ -76,17 +76,19 @@ Documentation & Platform
 
 ---
 
-Supported Adapters
-------------------
+Ecosystem
+---------
 
-Guard Agent is framework-agnostic. Pair it with the adapter for your stack:
+Guard Agent is the telemetry agent for the Guard ecosystem. It pairs with any framework adapter built on the shared engine:
 
-| Framework | Adapter package | Status |
-|-----------|-----------------|--------|
-| FastAPI   | [`fastapi-guard`](https://github.com/rennf93/fastapi-guard) | Stable |
-| Flask     | [`flaskapi-guard`](https://github.com/rennf93/flaskapi-guard) | Stable |
-| Django    | [`djangoapi-guard`](https://github.com/rennf93/djangoapi-guard) | Stable |
-| Tornado   | [`tornadoapi-guard`](https://github.com/rennf93/tornadoapi-guard) | Stable |
+| Package | Role | PyPI |
+|---|---|---|
+| [guard-core](https://github.com/rennf93/guard-core) | Framework-agnostic security engine | [![PyPI](https://img.shields.io/pypi/v/guard-core)](https://pypi.org/project/guard-core/) |
+| [guard-agent](https://github.com/rennf93/guard-agent) | Telemetry agent (this package) | [![PyPI](https://img.shields.io/pypi/v/guard-agent)](https://pypi.org/project/guard-agent/) |
+| [fastapi-guard](https://github.com/rennf93/fastapi-guard) | FastAPI / Starlette adapter | [![PyPI](https://img.shields.io/pypi/v/fastapi-guard)](https://pypi.org/project/fastapi-guard/) |
+| [flaskapi-guard](https://github.com/rennf93/flaskapi-guard) | Flask adapter | [![PyPI](https://img.shields.io/pypi/v/flaskapi-guard)](https://pypi.org/project/flaskapi-guard/) |
+| [djapi-guard](https://github.com/rennf93/djapi-guard) | Django adapter | [![PyPI](https://img.shields.io/pypi/v/djapi-guard)](https://pypi.org/project/djapi-guard/) |
+| [tornadoapi-guard](https://github.com/rennf93/tornadoapi-guard) | Tornado adapter | [![PyPI](https://img.shields.io/pypi/v/tornadoapi-guard)](https://pypi.org/project/tornadoapi-guard/) |
 
 All adapters share the same Guard Agent runtime and dashboard — a single telemetry contract across every framework.
 
