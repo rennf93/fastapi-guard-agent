@@ -1,10 +1,10 @@
 # Getting Started
 
-This comprehensive guide provides a systematic approach to deploying FastAPI Guard Agent within your application infrastructure. Upon completion, you will have established a production-ready security telemetry pipeline capable of real-time threat detection and response.
+This comprehensive guide provides a systematic approach to deploying Guard Agent within your application infrastructure. Upon completion, you will have established a production-ready security telemetry pipeline capable of real-time threat detection and response.
 
 ## Architecture Overview
 
-The FastAPI Guard Agent operates as an intelligent telemetry layer within your security infrastructure, providing:
+The Guard Agent operates as an intelligent telemetry layer within your security infrastructure, providing:
 
 1. **Automated Collection** - Captures security events and performance metrics through deep integration with FastAPI Guard middleware
 2. **Intelligent Buffering** - Implements multi-tier data management with memory and persistent storage options for optimal performance
@@ -16,7 +16,7 @@ The FastAPI Guard Agent operates as an intelligent telemetry layer within your s
 ### System Requirements
 
 - **Python Runtime**: Version 3.8 or higher (3.11+ recommended for optimal performance)
-- **Package Installation**: FastAPI Guard Agent via pip ([Installation Guide](../installation.md))
+- **Package Installation**: Guard Agent via pip ([Installation Guide](../installation.md))
 - **Application Framework**: Existing or new FastAPI application
 - **Authentication**: Valid API credentials from the FastAPI Guard management platform
 - **Optional Components**: Redis 6.0+ for persistent buffering in production environments
@@ -47,7 +47,7 @@ config = SecurityConfig(
     enable_agent=True,
     agent_api_key="your-api-key-here",      # Replace with your actual API key
     agent_project_id="your-project-id",     # Replace with your project ID
-    agent_endpoint="https://api.fastapi-guard.com",  # Default SaaS endpoint
+    agent_endpoint="https://api.guard-core.com",  # Default SaaS endpoint
 
     # Agent configuration
     agent_buffer_size=100,                  # Buffer up to 100 events
@@ -89,7 +89,7 @@ config = SecurityConfig(
     enable_agent=True,                    # Enable/disable agent
     agent_api_key="your-api-key",         # Your SaaS platform API key
     agent_project_id="your-project-id",   # Your project identifier
-    agent_endpoint="https://api.fastapi-guard.com",  # SaaS platform endpoint
+    agent_endpoint="https://api.guard-core.com",  # SaaS platform endpoint
     agent_buffer_size=100,                # Max events in memory buffer
     agent_flush_interval=30,              # Seconds between data transmissions
     agent_enable_events=True,             # Collect security events

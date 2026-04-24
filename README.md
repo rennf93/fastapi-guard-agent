@@ -1,69 +1,102 @@
 <p align="center">
-    <a href="https://rennf93.github.io/fastapi-guard-agent/latest/">
-        <img src="https://rennf93.github.io/fastapi-guard-agent/latest/assets/big_logo.svg" alt="FastAPI Guard Agent">
+    <a href="https://rennf93.github.io/guard-agent/latest/">
+        <img src="https://rennf93.github.io/guard-agent/latest/assets/big_logo.svg" alt="Guard Agent">
     </a>
 </p>
 
 ---
 
 <p align="center">
-    <strong>FastAPI Guard Agent is an enterprise-grade telemetry and monitoring solution that seamlessly integrates with FastAPI Guard to provide centralized security intelligence. The agent automatically collects security events, performance metrics, and enables real-time security policy updates through a cloud-based management platform.</strong>
+    <strong>Guard Agent is an enterprise-grade, framework-agnostic telemetry and monitoring agent for the Guard security ecosystem. It integrates with <code>fastapi-guard</code>, <code>flaskapi-guard</code>, <code>djangoapi-guard</code>, and <code>tornadoapi-guard</code> to provide centralized security intelligence, real-time policy updates, and comprehensive event collection across any Python web framework.</strong>
 </p>
 
 <p align="center">
-    <a href="https://badge.fury.io/py/fastapi-guard-agent">
-        <img src="https://badge.fury.io/py/fastapi-guard-agent.svg?cache=none&icon=si%3Apython&icon_color=%23008cb4" alt="PyPiVersion">
+    <a href="https://badge.fury.io/py/guard-agent">
+        <img src="https://badge.fury.io/py/guard-agent.svg?cache=none&icon=si%3Apython&icon_color=%23008cb4" alt="PyPiVersion">
     </a>
-    <a href="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/release.yml">
-        <img src="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/release.yml/badge.svg" alt="Release">
+    <a href="https://github.com/rennf93/guard-agent/actions/workflows/release.yml">
+        <img src="https://github.com/rennf93/guard-agent/actions/workflows/release.yml/badge.svg" alt="Release">
     </a>
     <a href="https://opensource.org/licenses/MIT">
         <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
     </a>
-    <a href="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/ci.yml">
-        <img src="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/ci.yml/badge.svg" alt="CI">
+    <a href="https://github.com/rennf93/guard-agent/actions/workflows/ci.yml">
+        <img src="https://github.com/rennf93/guard-agent/actions/workflows/ci.yml/badge.svg" alt="CI">
     </a>
-    <a href="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/code-ql.yml">
-        <img src="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/code-ql.yml/badge.svg" alt="CodeQL">
+    <a href="https://github.com/rennf93/guard-agent/actions/workflows/code-ql.yml">
+        <img src="https://github.com/rennf93/guard-agent/actions/workflows/code-ql.yml/badge.svg" alt="CodeQL">
     </a>
 </p>
 
 <p align="center">
-    <a href="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/pages/pages-build-deployment">
-        <img src="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/pages/pages-build-deployment/badge.svg?branch=gh-pages" alt="PagesBuildDeployment">
+    <a href="https://github.com/rennf93/guard-agent/actions/workflows/pages/pages-build-deployment">
+        <img src="https://github.com/rennf93/guard-agent/actions/workflows/pages/pages-build-deployment/badge.svg?branch=gh-pages" alt="PagesBuildDeployment">
     </a>
-    <a href="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/docs.yml">
-        <img src="https://github.com/rennf93/fastapi-guard-agent/actions/workflows/docs.yml/badge.svg" alt="DocsUpdate">
+    <a href="https://github.com/rennf93/guard-agent/actions/workflows/docs.yml">
+        <img src="https://github.com/rennf93/guard-agent/actions/workflows/docs.yml/badge.svg" alt="DocsUpdate">
     </a>
-    <img src="https://img.shields.io/github/last-commit/rennf93/fastapi-guard-agent?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" alt="last-commit">
+    <img src="https://img.shields.io/github/last-commit/rennf93/guard-agent?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" alt="last-commit">
 </p>
 
 <p align="center">
     <img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat&amp;logo=Python&amp;logoColor=white" alt="Python">
-    <img src="https://img.shields.io/badge/FastAPI-009688.svg?style=flat&amp;logo=FastAPI&amp;logoColor=white" alt="FastAPI">
     <img src="https://img.shields.io/badge/Redis-FF4438.svg?style=flat&amp;logo=Redis&amp;logoColor=white" alt="Redis">
-    <a href="https://pepy.tech/project/fastapi-guard-agent">
-        <img src="https://pepy.tech/badge/fastapi-guard-agent" alt="Downloads">
+    <a href="https://pepy.tech/project/guard-agent">
+        <img src="https://pepy.tech/badge/guard-agent" alt="Downloads">
     </a>
+</p>
+
+<p align="center">
+  <a href="https://guard-core.com">Website</a> &middot;
+  <a href="https://rennf93.github.io/guard-agent/latest/">Docs</a> &middot;
+  <a href="https://playground.guard-core.com">Playground</a> &middot;
+  <a href="https://app.guard-core.com">Dashboard</a> &middot;
+  <a href="https://discord.gg/ZW7ZJbjMkK">Discord</a>
+</p>
+
+<p align="center">
+  Framework-agnostic security telemetry for Python web apps.<br>
+  Feeds the Guard dashboard with events, metrics, and dynamic rules from any supported adapter.
 </p>
 
 ---
 
-Documentation
-=============
+> **Renamed from `fastapi-guard-agent`.** As of `guard-agent` 2.0.0, the package has been renamed to reflect its multi-framework scope. The Python import path (`from guard_agent import ...`) is unchanged. Existing `pip install fastapi-guard-agent` commands continue to work via a meta-package that transitively pulls the renamed distribution.
 
-🌐 **[Website](https://fastapi-guard.com)** - Check out the website!
+---
 
-🎮 **[Join our Discord Community](https://discord.gg/ZW7ZJbjMkK)** - Connect with other developers!
+Documentation & Platform
+========================
 
-📚 **[Documentation](https://rennf93.github.io/fastapi-guard-agent)** - Full technical documentation and deep dive into its inner workings.
+- 🌐 **[guard-core.com](https://guard-core.com)** — marketing site & product overview
+- 📚 **[Documentation](https://rennf93.github.io/guard-agent/latest/)** — full technical documentation
+- 🎮 **[Playground](https://playground.guard-core.com)** — try the Guard stack in-browser, no install required
+- 📊 **[Dashboard](https://app.guard-core.com)** — real-time security events, metrics, and dynamic rules for your projects
+- 💬 **[Discord](https://discord.gg/ZW7ZJbjMkK)** — community & maintainer support
+
+---
+
+Supported Adapters
+------------------
+
+Guard Agent is framework-agnostic. Pair it with the adapter for your stack:
+
+| Framework | Adapter package | Status |
+|-----------|-----------------|--------|
+| FastAPI   | [`fastapi-guard`](https://github.com/rennf93/fastapi-guard) | Stable |
+| Flask     | [`flaskapi-guard`](https://github.com/rennf93/flaskapi-guard) | Stable |
+| Django    | [`djangoapi-guard`](https://github.com/rennf93/djangoapi-guard) | Stable |
+| Tornado   | [`tornadoapi-guard`](https://github.com/rennf93/tornadoapi-guard) | Stable |
+
+All adapters share the same Guard Agent runtime and dashboard — a single telemetry contract across every framework.
 
 ---
 
 Key Features
 ------------
 
--   **Automatic Integration**: Seamlessly integrates with FastAPI Guard through a unified configuration interface, requiring minimal setup for comprehensive security monitoring.
+-   **Framework-Agnostic Core**: One agent, one dashboard — works with every Guard adapter (FastAPI, Flask, Django, Tornado) through a shared wire protocol.
+-   **Automatic Integration**: Adapters wire the agent into their middleware automatically. Enable it through the adapter's `SecurityConfig` — no glue code required.
 -   **High-Performance Architecture**: Built on asynchronous I/O principles to ensure zero performance impact on your application while maintaining real-time data collection capabilities.
 -   **Enterprise-Grade Reliability**: Implements industry-standard resilience patterns including circuit breakers, exponential backoff with jitter, and intelligent retry mechanisms to guarantee data delivery.
 -   **Intelligent Data Management**: Features multi-tier buffering with in-memory and optional Redis persistence, ensuring zero data loss during network interruptions or application restarts.
@@ -76,10 +109,22 @@ Key Features
 Installation
 ------------
 
-To install `fastapi-guard-agent`, use pip:
+```bash
+pip install guard-agent
+```
+
+Or with `uv`:
 
 ```bash
-pip install fastapi-guard-agent
+uv add guard-agent
+```
+
+> The legacy name `fastapi-guard-agent` is still published as a meta-package that installs `guard-agent` transitively — existing installs keep working, but new projects should use `guard-agent` directly.
+
+Optional extras:
+
+```bash
+pip install "guard-agent[redis]"    # Enable Redis-backed event buffer
 ```
 
 ---
@@ -87,61 +132,57 @@ pip install fastapi-guard-agent
 Getting Started
 ---------------
 
-Basic Integration
------------------
+Guard Agent is embedded directly by your framework's adapter — you enable it through the adapter's security config rather than importing it manually.
 
-The FastAPI Guard Agent is designed for effortless integration with your existing FastAPI Guard security setup. The following example demonstrates the recommended configuration approach:
+### FastAPI example
 
 ```python
 from fastapi import FastAPI
 from guard import SecurityConfig, SecurityMiddleware
 
-# Configure FastAPI Guard with built-in agent support
 config = SecurityConfig(
-    # Basic security settings
     auto_ban_threshold=5,
     auto_ban_duration=300,
-    
-    # Enable agent for telemetry
+
+    # Enable agent telemetry
     enable_agent=True,
     agent_api_key="YOUR_API_KEY",
     agent_project_id="YOUR_PROJECT_ID",
-    agent_endpoint="https://api.fastapi-guard.com",
-    
-    # Agent configuration
+    agent_endpoint="https://api.guard-core.com",
+
     agent_buffer_size=100,
     agent_flush_interval=30,
     agent_enable_events=True,
     agent_enable_metrics=True,
-    
-    # Enable dynamic rules from SaaS
+
     enable_dynamic_rules=True,
     dynamic_rule_interval=300,
 )
 
 app = FastAPI()
-
-# Add security middleware - events are sent automatically
-middleware = SecurityMiddleware(app, config=config)
+SecurityMiddleware(app, config=config)
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
 ```
 
-With this configuration, the agent automatically:
-- Captures all security violations including IP bans, rate limit breaches, and suspicious request patterns
+Flask, Django, and Tornado adapters expose analogous `SecurityConfig` interfaces — see each adapter's README for framework-native examples.
+
+With `enable_agent=True`, the agent automatically:
+
+- Captures security violations (IP bans, rate-limit breaches, suspicious request patterns)
 - Collects performance telemetry for security operations monitoring
 - Synchronizes security policies from the centralized management platform
 - Implements intelligent buffering for optimal network utilization
-- Provides fault-tolerant operation with automatic recovery mechanisms
+- Recovers automatically from transient network failures
 
 ---
 
 Advanced Configuration
 ----------------------
 
-For advanced use cases requiring direct agent control, the FastAPI Guard Agent can be configured using the `AgentConfig` model. This approach is typically used for custom event handling or standalone deployments:
+For standalone use or custom event handling, instantiate the agent directly:
 
 ```python
 from guard_agent.client import guard_agent
@@ -158,11 +199,11 @@ agent = guard_agent(config)
 ### Configuration Parameters
 
 #### Authentication & Identification
--   **`api_key: str`** (Required): Authentication key for the FastAPI Guard management platform
+-   **`api_key: str`** (Required): Authentication key for the Guard management platform
 -   **`project_id: str | None`**: Unique project identifier for data segregation and multi-tenancy support
 
 #### Network Configuration
--   **`endpoint: str`**: Management platform API endpoint (Default: `https://api.fastapi-guard.com`)
+-   **`endpoint: str`**: Management platform API endpoint (Default: `https://api.guard-core.com`)
 -   **`timeout: int`**: HTTP request timeout in seconds (Default: `30`)
 -   **`retry_attempts: int`**: Maximum retry attempts for failed requests (Default: `3`)
 -   **`backoff_factor: float`**: Exponential backoff multiplier for retry delays (Default: `1.0`)
@@ -178,6 +219,30 @@ agent = guard_agent(config)
 
 #### Security & Privacy
 -   **`sensitive_headers: list[str]`**: HTTP headers to redact from collected data (Default: `["authorization", "cookie", "x-api-key"]`)
+
+---
+
+Migration from `fastapi-guard-agent`
+------------------------------------
+
+No code changes required. The import path was always `guard_agent`:
+
+```python
+# This worked before and still works:
+from guard_agent import GuardAgentHandler, AgentConfig
+```
+
+To switch your install command:
+
+```bash
+# Old (still works via shim)
+pip install fastapi-guard-agent
+
+# New (preferred)
+pip install guard-agent
+```
+
+The legacy `fastapi-guard-agent` name is maintained as a meta-package pointing to `guard-agent>=2.0.0,<3.0.0`, so pinned environments keep resolving correctly.
 
 ---
 
@@ -206,6 +271,9 @@ Acknowledgements
 ----------------
 
 - [FastAPI](https://fastapi.tiangolo.com/)
+- [Flask](https://flask.palletsprojects.com/)
+- [Django](https://www.djangoproject.com/)
+- [Tornado](https://www.tornadoweb.org/)
 - [Redis](https://redis.io/)
 - [httpx](https://www.python-httpx.org/)
 - [Pydantic](https://pydantic-docs.helpmanual.io/)

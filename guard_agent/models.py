@@ -49,7 +49,7 @@ class AgentConfig(BaseModel):
 
     api_key: str = Field(description="Guard Agent API key")
     endpoint: str = Field(
-        default="https://api.fastapi-guard.com", description="Agent endpoint URL"
+        default="https://api.guard-core.com", description="Agent endpoint URL"
     )
     project_id: str | None = Field(
         default=None, description="Project ID for organization"

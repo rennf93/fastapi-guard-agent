@@ -24,11 +24,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Started'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Pypi Release'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Pypi Release'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':rocket:'
           TITLE: 'Pypi Release Started'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *NEW VERSION v${{ github.event.release.tag_name }} TRIGGERED PYPI RELEASE!*
@@ -106,11 +106,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Success'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Pypi Release'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Pypi Release'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':gem:'
           TITLE: 'Pypi Release Successful'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *Pypi Release v${{ github.event.release.tag_name }} Successful!*
@@ -131,15 +131,15 @@ jobs:
       #     username: "Release Bot"
       #     color: "#00ff00"
       #     message: |
-      #       🚀 **FastAPI Guard Agent v${{ github.event.release.tag_name }} - Released to PyPI!** 💎
+      #       🚀 **Guard Agent v${{ github.event.release.tag_name }} - Released to PyPI!** 💎
 
       #       **Release Notes:**
       #       ${{ github.event.release.body }}
 
       #       **Links:**
-      #       📦 [PyPI Package](https://pypi.org/project/fastapi-guard-agent/)
-      #       📖 [Documentation](https://rennf93.github.io/fastapi-guard-agent/)
-      #       🔗 [GitHub Release](https://github.com/rennf93/fastapi-guard-agent/releases/tag/${{ github.event.release.tag_name }})
+      #       📦 [PyPI Package](https://pypi.org/project/guard-agent/)
+      #       📖 [Documentation](https://rennf93.github.io/guard-agent/)
+      #       🔗 [GitHub Release](https://github.com/rennf93/guard-agent/releases/tag/${{ github.event.release.tag_name }})
 
       - name: Send Failure Notification to Slack
         if: failure()
@@ -149,11 +149,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Failed'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Pypi Release'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Pypi Release'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':skull:'
           TITLE: 'Pypi Release Failed'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *Pypi Release v${{ github.event.release.tag_name }} Failed!*

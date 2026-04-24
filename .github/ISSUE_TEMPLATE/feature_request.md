@@ -1,7 +1,7 @@
 ---
 
 name: Feature request
-about: Suggest an idea for FastAPI Guard Agent
+about: Suggest an idea for Guard Agent
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''

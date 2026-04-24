@@ -1,7 +1,7 @@
 [project]
-name = "fastapi_guard_agent"
-version = "1.1.1"
-description = "Telemetry and monitoring agent for FastAPI Guard security middleware"
+name = "guard-agent"
+version = "2.0.0"
+description = "Framework-agnostic telemetry and monitoring agent for the Guard security ecosystem (fastapi-guard, flaskapi-guard, djangoapi-guard, tornadoapi-guard)"
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
 ]
@@ -9,8 +9,7 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10,<3.15"
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Framework :: FastAPI",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -26,18 +25,24 @@ classifiers = [
 dependencies = [
     "cryptography",
     "httpx",
-    "fastapi",
-    "fastapi-guard",
     "pydantic",
     "typing-extensions",
 ]
 
 [project.urls]
-Homepage = "https://github.com/rennf93/fastapi-guard-agent"
+Homepage = "https://guard-core.com"
+Documentation = "https://rennf93.github.io/guard-agent/latest/"
+Repository = "https://github.com/rennf93/guard-agent"
+Changelog = "https://github.com/rennf93/guard-agent/blob/master/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/rennf93/guard-agent/issues"
+"Cloud Dashboard" = "https://app.guard-core.com"
+"Live Playground" = "https://playground.guard-core.com"
 
 [project.optional-dependencies]
 dev = [
     "black",
+    "fastapi",
+    "fastapi-guard",
     "httpx",
     "mkdocs",
     "mkdocstrings",

@@ -22,11 +22,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Started'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Scheduled Lint Check'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Scheduled Lint Check'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':hammer_and_wrench:'
           TITLE: 'MyPy and Ruff Checks Started'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *VALIDATING MYPY AND RUFF...*
@@ -75,11 +75,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Success'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Scheduled Lint Check'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Scheduled Lint Check'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':gem:'
           TITLE: 'Up-to-date MyPy and Ruff!'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             **All checks passed!**
@@ -99,11 +99,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Failed'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Scheduled Lint Check'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Scheduled Lint Check'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':skull:'
           TITLE: 'Outdated MyPy and/or Ruff!'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             **MYPY AND RUFF ARE OUTDATED!**
@@ -132,11 +132,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Started'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Scheduled Docs Lint Check'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Scheduled Docs Lint Check'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':memo:'
           TITLE: 'Documentation Lint Check Started'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *VALIDATING DOCUMENTATION...*
@@ -180,11 +180,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Success'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Docs Lint Check'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Docs Lint Check'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':gem:'
           TITLE: 'Documentation is Up-to-date!'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             **All markdown checks passed!**
@@ -204,11 +204,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Failed'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Docs Lint Check'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Docs Lint Check'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':skull:'
           TITLE: 'Documentation Issues Detected!'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             **DOCUMENTATION NEEDS FIXING!**

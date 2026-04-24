@@ -1,7 +1,7 @@
-Contributing to FastAPI Guard Agent
+Contributing to Guard Agent
 ===================================
 
-We appreciate your interest in contributing to FastAPI Guard Agent. This document provides comprehensive guidelines for participating in the development of this enterprise-grade security telemetry solution, ensuring efficient collaboration and maintaining our high standards of code quality.
+We appreciate your interest in contributing to Guard Agent. This document provides comprehensive guidelines for participating in the development of this enterprise-grade security telemetry solution, ensuring efficient collaboration and maintaining our high standards of code quality.
 
 Code of Conduct
 ---------------
@@ -23,7 +23,7 @@ Prior to submitting bug reports, conduct a thorough search of existing issues to
 - Include specific examples, including relevant HTTP requests and payloads
 - Articulate observed behavior versus expected behavior with technical precision
 - Provide complete error logs, stack traces, and diagnostic information
-- Detail your execution environment: operating system, Python version, FastAPI version, and all relevant dependencies
+- Detail your execution environment: operating system, Python version, framework adapter (fastapi-guard / flaskapi-guard / djangoapi-guard / tornadoapi-guard) and its version, and all relevant dependencies
 
 Proposing Feature Enhancements
 -------------------------------
@@ -32,7 +32,7 @@ Feature proposals are managed through GitHub's issue tracking system. When submi
 
 - Craft concise yet comprehensive titles that encapsulate the feature scope
 - Provide detailed technical specifications for the proposed functionality
-- Articulate the business value and technical benefits for FastAPI Guard's user base
+- Articulate the business value and technical benefits for the Guard ecosystem's user base
 - Include practical implementation examples and use case scenarios
 - Reference relevant industry standards, competing implementations, or academic research
 
@@ -66,7 +66,7 @@ make stop
 Testing Infrastructure
 ----------------------
 
-The project maintains compatibility across Python 3.10, 3.11, 3.12, and 3.13. Our containerized testing infrastructure ensures consistency across environments:
+The project maintains compatibility across Python 3.10, 3.11, 3.12, 3.13, and 3.14. Our containerized testing infrastructure ensures consistency across environments:
 
 ```bash
 # Run tests with the default Python version (3.10)
@@ -136,4 +136,4 @@ Support and Communication
 
 For technical inquiries regarding the development process or architectural decisions, please initiate a discussion through the issue tracking system.
 
-Your contributions are vital to the continued evolution of FastAPI Guard Agent's security capabilities.
+Your contributions are vital to the continued evolution of Guard Agent's security capabilities.

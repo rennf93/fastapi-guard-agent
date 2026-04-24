@@ -71,11 +71,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Started'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - CI & Tests - Py${{ matrix.python-version }}'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - CI & Tests - Py${{ matrix.python-version }}'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':test_tube:'
           TITLE: 'CI & Tests Started - Py${{ matrix.python-version }}'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *CI & TESTS TRIGGERED!*
@@ -116,11 +116,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Success'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - CI & Tests - Py${{ matrix.python-version }}'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - CI & Tests - Py${{ matrix.python-version }}'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':gem:'
           TITLE: 'CI & Tests Successful - Py${{ matrix.python-version }}'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             Matrix:
@@ -146,11 +146,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Failed'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - CI & Tests - Py${{ matrix.python-version }}'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - CI & Tests - Py${{ matrix.python-version }}'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':skull:'
           TITLE: 'CI & Tests Failed - Py${{ matrix.python-version }}'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             Matrix:

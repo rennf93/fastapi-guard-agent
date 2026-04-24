@@ -37,11 +37,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Started'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Docs Update'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Docs Update'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':books:'
           TITLE: 'Docs Update Started'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *DOCS UPDATE TRIGGERED!*
@@ -134,11 +134,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Success'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Docs Update'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Docs Update'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':gem:'
           TITLE: 'Docs Update Successful'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *Docs v${{ env.VERSION }} Update Successful!*
@@ -160,11 +160,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Failed'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - Docs Update'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - Docs Update'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':skull:'
           TITLE: 'Docs Update Failed'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *Docs v${{ env.VERSION }} Update Failed!*

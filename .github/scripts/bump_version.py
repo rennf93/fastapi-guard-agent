@@ -1,5 +1,5 @@
 """
-Version bump helper script for fastapi-guard-agent.
+Version bump helper script for guard-agent.
 
 Updates the version string across all files that reference it:
 - pyproject.toml

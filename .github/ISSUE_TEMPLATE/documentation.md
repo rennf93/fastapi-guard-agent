@@ -1,7 +1,7 @@
 ---
 
 name: Documentation
-about: Report issues with the FastAPI Guard Agent documentation or suggest improvements
+about: Report issues with the Guard Agent documentation or suggest improvements
 title: '[DOCS] '
 labels: documentation
 assignees: ''

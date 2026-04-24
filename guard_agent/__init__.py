@@ -1,8 +1,10 @@
 """
-FastAPI Guard Agent - Telemetry and monitoring agent for FastAPI Guard.
+Guard Agent — framework-agnostic telemetry agent for the Guard ecosystem.
 
-This library provides telemetry capabilities for the FastAPI Guard security middleware,
-enabling monitoring, analytics, and dynamic rule management through a SaaS platform.
+Provides telemetry capabilities for the Guard adapters (``fastapi-guard``,
+``flaskapi-guard``, ``djangoapi-guard``, ``tornadoapi-guard``), enabling
+monitoring, analytics, and dynamic rule management through a centralized
+management platform.
 """
 
 from guard_agent.buffer import EventBuffer
@@ -34,7 +36,7 @@ from guard_agent.utils import (
     validate_config,
 )
 
-__version__ = "1.1.0"
+__version__ = "2.0.0"
 
 __all__ = [
     "guard_agent",

@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: FastAPI Guard Agent Documentation
-    url: https://rennf93.github.io/fastapi-guard-agent/
+  - name: Guard Agent Documentation
+    url: https://rennf93.github.io/guard-agent/
     about: Check the documentation for usage information and tutorials
   - name: Usage Questions
-    url: https://github.com/rennf93/fastapi-guard-agent/discussions
+    url: https://github.com/rennf93/guard-agent/discussions
     about: Please ask and answer questions in GitHub Discussions

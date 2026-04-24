@@ -3,6 +3,37 @@ Release Notes
 
 ___
 
+v2.0.0 (2026-04-24)
+-------------------
+
+Package Rename (v2.0.0)
+-----------------------
+- **Renamed on PyPI**: `fastapi-guard-agent` → `guard-agent`. The Python import path (`from guard_agent import ...`) is unchanged — no code changes are required in consuming applications.
+- Repositioned as a framework-agnostic telemetry agent serving `fastapi-guard`, `flaskapi-guard`, `djangoapi-guard`, and `tornadoapi-guard`.
+- **Legacy name preserved**: a meta-package `fastapi-guard-agent==1.2.0` is published alongside this release, whose only dependency is `guard-agent>=2.0.0,<3.0.0`. Existing `pip install fastapi-guard-agent` invocations continue to resolve correctly and pull the renamed distribution transitively.
+- Repository renamed on GitHub: `rennf93/fastapi-guard-agent` → `rennf93/guard-agent`. GitHub auto-redirects the old URLs.
+- Documentation site moved to `https://rennf93.github.io/guard-agent/`.
+
+Dependency Changes (v2.0.0)
+---------------------------
+- Removed `fastapi` and `fastapi-guard` from runtime dependencies — the agent is framework-agnostic and speaks HTTP to the dashboard, not to any web framework.
+- Runtime deps are now: `cryptography`, `httpx`, `pydantic`, `typing-extensions`.
+- `fastapi` and `fastapi-guard` remain as dev extras so the existing test suite keeps passing. Each framework adapter brings its own web framework.
+- Dropped `Framework :: FastAPI` classifier; development status promoted from `Alpha` to `Beta`.
+
+Breaking Changes (v2.0.0)
+-------------------------
+- **None in Python API** — `from guard_agent import ...`, `GuardAgentHandler`, `AgentConfig`, and every public symbol behave identically.
+- **Distribution name change only**: scripts, Dockerfiles, and lockfiles that install `fastapi-guard-agent` directly should migrate to `guard-agent`. The shim keeps old commands working but new projects should install `guard-agent` directly.
+
+Migration Guide (v2.0.0)
+------------------------
+- Existing code: no changes.
+- Install commands: replace `pip install fastapi-guard-agent` with `pip install guard-agent` at your leisure — both resolve to the same underlying package.
+- Lockfiles: running `uv lock` or `pip-compile` after bumping will transparently update entries to `guard-agent`.
+
+___
+
 v1.1.1 (2026-03-11)
 -------------------
 

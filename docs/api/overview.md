@@ -1,6 +1,6 @@
 # API Overview
 
-The FastAPI Guard Agent API provides a comprehensive, protocol-driven architecture for enterprise-grade security telemetry. Designed with extensibility and reliability at its core, the API enables seamless integration with diverse monitoring ecosystems while maintaining strict performance guarantees.
+The Guard Agent API provides a comprehensive, protocol-driven architecture for enterprise-grade security telemetry. Designed with extensibility and reliability at its core, the API enables seamless integration with diverse monitoring ecosystems while maintaining strict performance guarantees.
 
 ## System Architecture
 
@@ -13,7 +13,7 @@ graph TB
         SC[SecurityConfig<br/>enable_agent=True]
     end
 
-    subgraph "FastAPI Guard Agent (Auto-initialized)"
+    subgraph "Guard Agent (Auto-initialized)"
         AH[Agent Handler<br/>Central Orchestrator]
         EB[Event Buffer<br/>High-Performance Queue]
         TR[HTTP Transport<br/>Resilient Network Layer]
@@ -66,7 +66,7 @@ config = SecurityConfig(
     enable_agent=True,
     agent_api_key="your-api-key",
     agent_project_id="your-project-id",
-    agent_endpoint="https://api.fastapi-guard.com",
+    agent_endpoint="https://api.guard-core.com",
 )
 
 app = FastAPI()

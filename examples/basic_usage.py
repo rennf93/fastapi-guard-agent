@@ -1,10 +1,13 @@
 """
-Basic usage example for FastAPI Guard Agent.
+Basic usage example for Guard Agent with the FastAPI adapter (fastapi-guard).
 
 This example shows how to:
-1. Integrate FastAPI Guard Agent with FastAPI Guard (recommended)
-2. Use direct agent API for custom events (advanced)
+1. Integrate Guard Agent with fastapi-guard (recommended)
+2. Use the direct agent API for custom events (advanced)
 3. Monitor agent status and health
+
+For Flask, Django, and Tornado integrations, see the adapter-specific
+documentation — Guard Agent itself is framework-agnostic.
 """
 
 import asyncio
@@ -26,19 +29,20 @@ from guard_agent import (
 async def basic_agent_usage() -> None:
     """Example of direct agent usage (ADVANCED USERS ONLY).
 
-    NOTE: Most users should use the automatic integration with FastAPI Guard
-    shown in create_fastapi_app_with_agent() above. Direct usage is only
-    needed for custom events or when not using FastAPI Guard.
+    NOTE: Most users should use the automatic integration with their framework
+    adapter (fastapi-guard / flaskapi-guard / djangoapi-guard / tornadoapi-guard)
+    shown in create_fastapi_app_with_agent() above. Direct usage is only needed
+    for custom events or standalone deployments.
     """
     print("\n=== Direct Agent Usage (Advanced) ===")
     print("NOTE: This is for advanced use cases only!")
-    print("Most users should use the automatic integration with FastAPI Guard.\n")
+    print("Most users should use the automatic integration with their adapter.\n")
 
     # Configure the agent
     config = AgentConfig(
         api_key="demo-api-key-12345",
         project_id="demo-project",
-        endpoint="https://api.fastapi-guard.com",
+        endpoint="https://api.guard-core.com",
         buffer_size=10,
         flush_interval=5,
     )
@@ -92,10 +96,10 @@ async def basic_agent_usage() -> None:
 
 
 def create_fastapi_app_with_agent() -> FastAPI:
-    """Example of integrating agent with FastAPI Guard (RECOMMENDED)."""
-    print("\n=== FastAPI Guard + Agent Integration (Recommended) ===")
+    """Example of integrating Guard Agent with the FastAPI adapter (RECOMMENDED)."""
+    print("\n=== fastapi-guard + Guard Agent Integration (Recommended) ===")
 
-    app = FastAPI(title="FastAPI Guard Agent Example")
+    app = FastAPI(title="Guard Agent Example (FastAPI)")
 
     # Configure FastAPI Guard with agent enabled
     config = SecurityConfig(
@@ -109,7 +113,7 @@ def create_fastapi_app_with_agent() -> FastAPI:
         enable_agent=True,
         agent_api_key="demo-api-key-12345",
         agent_project_id="fastapi-demo",
-        agent_endpoint="https://api.fastapi-guard.com",
+        agent_endpoint="https://api.guard-core.com",
         # Agent configuration
         agent_buffer_size=50,
         agent_flush_interval=30,
@@ -130,7 +134,7 @@ def create_fastapi_app_with_agent() -> FastAPI:
     @app.get("/")
     async def root() -> dict[str, str]:
         """Root endpoint."""
-        return {"message": "FastAPI Guard Agent Demo - Automatic Integration"}
+        return {"message": "Guard Agent Demo (FastAPI adapter) - Automatic Integration"}
 
     @app.get("/protected")
     @guard.rate_limit(requests=5, window=60)
@@ -238,7 +242,7 @@ async def integrated_app_example() -> None:
 
 async def main() -> None:
     """Run all examples."""
-    print("FastAPI Guard Agent Examples")
+    print("Guard Agent Examples (FastAPI adapter)")
     print("=" * 40)
 
     # Show recommended integration first

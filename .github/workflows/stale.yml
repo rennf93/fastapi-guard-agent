@@ -37,7 +37,7 @@ jobs:
 
               Things that help keep an issue moving:
               - A current reproduction (snippet or failing test)
-              - Output of `python --version && uv --version` and `pip show guard-core fastapi-guard-agent`
+              - Output of `python --version && uv --version` and `pip show guard-core guard-agent`
               - Which framework adapter is producing the events and its version
               - Any new findings since the last activity (mask API tokens before posting)
 

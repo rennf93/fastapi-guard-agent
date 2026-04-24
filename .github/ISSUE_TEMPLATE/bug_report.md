@@ -1,7 +1,7 @@
 ---
 
 name: Bug report
-about: Create a report to help us improve FastAPI Guard Agent
+about: Create a report to help us improve Guard Agent
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -16,7 +16,7 @@ ___
 Steps To Reproduce
 ===================
 Steps to reproduce the behavior:
-1. Configure FastAPI Guard Agent with '...'
+1. Configure Guard Agent with '...'
 2. Make request to endpoint '....'
 3. See error
 
@@ -36,10 +36,11 @@ ___
 
 Environment
 ===========
-- FastAPI Guard Agent version: [e.g. 1.1.0]
-- FastAPI Guard version: [e.g. 4.1.2]
+- Guard Agent version: [e.g. 2.0.0]
+- Framework adapter: [fastapi-guard / flaskapi-guard / djangoapi-guard / tornadoapi-guard]
+- Adapter version: [e.g. fastapi-guard 4.1.2]
 - Python version: [e.g. 3.11.10]
-- FastAPI version: [e.g. 0.115.0]
+- Framework version: [e.g. fastapi 0.115.0]
 - Redis version: [e.g. 7.0.12]
 - OS: [e.g. Ubuntu 22.04, Windows 11, MacOS 15.4]
 - Other relevant dependencies:
@@ -50,7 +51,7 @@ Configuration
 =============
 
 ```python
-# Include your FastAPI Guard Agent configuration here
+# Include your Guard Agent configuration here
 
 ```
 

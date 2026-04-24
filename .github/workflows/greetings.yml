@@ -13,13 +13,13 @@ jobs:
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         issue-message: |
-            Thanks for opening your first issue on **fastapi-guard-agent**!
+            Thanks for opening your first issue on **guard-agent**!
 
             To help us triage quickly, please make sure your report includes:
             - A clear reproduction (a short snippet or failing test is ideal)
             - Output of `python --version && uv --version`
             - The Python version range supported (`>=3.10,<3.15`) and which version you're on
-            - `pip show guard-core fastapi-guard-agent` so we can see installed versions
+            - `pip show guard-core guard-agent` so we can see installed versions
             - The framework adapter you're sending events from (fastapi-guard / flaskapi-guard / djangoapi-guard / tornadoapi-guard) and its version
             - Operating system, transport configuration (HTTP endpoint, encryption, batching), and Redis state if relevant
             - Logs / tracebacks (mask any API tokens before posting)
@@ -31,7 +31,7 @@ jobs:
 
             Thanks again — a maintainer will be with you soon.
         pr-message: |
-            Thanks for opening your first pull request on **fastapi-guard-agent**!
+            Thanks for opening your first pull request on **guard-agent**!
 
             Quick checklist before review (most of these are enforced by CI, but worth a glance):
             - [ ] `make lint` — `ruff format`, `ruff check`, `mypy`, and `vulture`

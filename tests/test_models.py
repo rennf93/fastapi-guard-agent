@@ -39,7 +39,7 @@ class TestAgentConfig:
         """Test that default values are set correctly."""
         config = AgentConfig(api_key="test")
 
-        assert config.endpoint == "https://api.fastapi-guard.com"
+        assert config.endpoint == "https://api.guard-core.com"
         assert config.buffer_size == 100
         assert config.flush_interval == 30
         assert config.enable_metrics is True

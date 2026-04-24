@@ -1,12 +1,15 @@
 # Installation Guide
 
-This comprehensive guide provides detailed instructions for deploying FastAPI Guard Agent across various environments and configurations.
+This guide provides detailed instructions for deploying Guard Agent across various environments and configurations.
+
+!!! info "Renamed from `fastapi-guard-agent` in 2.0.0"
+    The package was previously published as `fastapi-guard-agent`. The Python import path (`from guard_agent import ...`) is unchanged. Existing `pip install fastapi-guard-agent` commands still resolve via a meta-package that depends on `guard-agent>=2.0.0,<3.0.0`.
 
 ## System Requirements
 
 ### Python Runtime
 
-FastAPI Guard Agent requires **Python 3.10 or higher**. For optimal performance and feature compatibility, Python 3.11+ is recommended.
+Guard Agent requires **Python 3.10 or higher**. For optimal performance and feature compatibility, Python 3.11+ is recommended.
 
 Verify your Python installation:
 
@@ -19,30 +22,45 @@ python --version
 The following dependencies are automatically managed during installation:
 
 #### Required Components
-- **`fastapi-guard`** - Security middleware providing the integration framework
 - **`pydantic`** ≥ 2.0 - Type-safe data validation and serialization
 - **`httpx`** - High-performance async HTTP client with connection pooling
+- **`cryptography`** - AES-256-GCM payload encryption
 - **`typing-extensions`** ≥ 4.0 - Enhanced type hints for Python 3.10 compatibility
 
 #### Optional Components
+- A Guard adapter for your framework (install alongside the agent):
+    - **`fastapi-guard`** for FastAPI
+    - **`flaskapi-guard`** for Flask
+    - **`djangoapi-guard`** for Django
+    - **`tornadoapi-guard`** for Tornado
 - **`redis`** ≥ 6.0.0 - Client library for persistent buffering (production recommended)
 - **Redis Server** 6.0+ - External service for high-availability deployments
-- **ASGI Server** - Uvicorn, Hypercorn, or similar for application hosting
+- **ASGI/WSGI Server** - Uvicorn, Hypercorn, Gunicorn, or similar for application hosting
 
 ## Installation Methods
 
 ### Standard Installation
 
-For integrated deployments with FastAPI Guard:
+Install Guard Agent together with the adapter for your framework:
 
 ```bash
-pip install fastapi-guard fastapi-guard-agent
+# FastAPI
+pip install fastapi-guard guard-agent
+
+# Flask
+pip install flaskapi-guard guard-agent
+
+# Django
+pip install djangoapi-guard guard-agent
+
+# Tornado
+pip install tornadoapi-guard guard-agent
 ```
 
-For standalone agent deployments:
+For standalone agent deployments (direct wire protocol, no adapter):
 
 ```bash
-pip install fastapi-guard-agent
+pip install guard-agent
 ```
 
 ### Version-Specific Installation
@@ -50,21 +68,27 @@ pip install fastapi-guard-agent
 Pin to a specific version for reproducible deployments:
 
 ```bash
-pip install fastapi-guard-agent==1.0.1
+pip install guard-agent==2.0.0
 ```
 
 ### Modern Python Packaging
 
+#### uv Integration
+
+```bash
+uv add guard-agent
+```
+
 #### Poetry Integration
 
 ```bash
-poetry add fastapi-guard-agent
+poetry add guard-agent
 ```
 
 For development dependencies:
 
 ```bash
-poetry add --group dev fastapi-guard-agent
+poetry add --group dev guard-agent
 ```
 
 #### pip-tools Workflow
@@ -72,7 +96,7 @@ poetry add --group dev fastapi-guard-agent
 Define in `requirements.in`:
 
 ```text
-fastapi-guard-agen==1.0.1
+guard-agent==2.0.0
 ```
 
 Generate locked requirements:
@@ -87,8 +111,8 @@ pip-sync requirements.txt
 For contributors and advanced users requiring source access:
 
 ```bash
-git clone https://github.com/rennf93/fastapi-guard-agent.git
-cd fastapi-guard-agent
+git clone https://github.com/rennf93/guard-agent.git
+cd guard-agent
 pip install -e ".[dev]"
 ```
 
@@ -110,7 +134,7 @@ FROM python:3.11-slim as builder
 # Build dependencies
 WORKDIR /build
 COPY requirements.txt .
-RUN pip install --user -r requirements.txt fastapi-guard-agent
+RUN pip install --user -r requirements.txt guard-agent
 
 FROM python:3.11-slim
 
@@ -140,17 +164,17 @@ Verify successful installation through systematic import testing:
 ```python
 # test_installation.py
 try:
-    # Validate FastAPI Guard installation
-    from guard import SecurityConfig, SecurityMiddleware
-    print("✅ FastAPI Guard installation verified")
-
-    # Validate Agent module availability
+    # Validate Guard Agent module availability
     from guard_agent import __version__
     from guard_agent.client import guard_agent
     from guard_agent.models import AgentConfig
-    print(f"✅ FastAPI Guard Agent {__version__} successfully installed")
+    print(f"Guard Agent {__version__} successfully installed")
+
+    # Validate your framework's adapter (example: FastAPI)
+    from guard import SecurityConfig, SecurityMiddleware
+    print("FastAPI adapter (fastapi-guard) verified")
 except ImportError as e:
-    print(f"❌ Installation validation failed: {e}")
+    print(f"Installation validation failed: {e}")
 ```
 
 Run the test:
@@ -161,7 +185,7 @@ python test_installation.py
 
 ### 2. Configuration Validation Test
 
-Validate proper integration between FastAPI Guard and the telemetry agent:
+Validate proper integration between your framework's adapter and the telemetry agent (example uses the FastAPI adapter):
 
 ```python
 # test_config.py
@@ -227,7 +251,7 @@ config = SecurityConfig(
     enable_agent=True,
     agent_api_key="your-test-api-key",
     agent_project_id="your-test-project",
-    agent_endpoint="https://api.fastapi-guard.com"
+    agent_endpoint="https://api.guard-core.com"
 )
 
 # Add middleware - agent starts automatically
@@ -235,7 +259,7 @@ middleware = SecurityMiddleware(app, config=config)
 
 @app.get("/")
 async def root():
-    return {"message": "FastAPI Guard Agent is running!"}
+    return {"message": "Guard Agent is running!"}
 
 @app.get("/test")
 async def test():
@@ -254,7 +278,7 @@ async def test():
 1. Ensure you're using the correct Python environment:
    ```bash
    which python
-   pip list | grep fastapi-guard-agent
+   pip list | grep guard-agent
    ```
 
 2. If using virtual environments, make sure it's activated:
@@ -266,8 +290,8 @@ async def test():
 
 3. Reinstall the package:
    ```bash
-   pip uninstall fastapi-guard-agent
-   pip install fastapi-guard-agent
+   pip uninstall guard-agent
+   pip install guard-agent
    ```
 
 ### Redis Connectivity Issues
@@ -306,14 +330,14 @@ async def test():
 1. Check your API endpoint configuration:
    ```python
    config = AgentConfig(
-       endpoint="https://api.fastapi-guard.com",  # Ensure this is correct
+       endpoint="https://api.guard-core.com",  # Ensure this is correct
        api_key="your-api-key"
    )
    ```
 
 2. Verify network connectivity:
    ```bash
-   curl -I https://api.fastapi-guard.com/health
+   curl -I https://api.guard-core.com/health
    ```
 
 3. Check firewall settings and proxy configuration if behind corporate network.
@@ -325,29 +349,33 @@ async def test():
 **Resolution Strategies**:
 1. Use `--user` flag for user-level installation:
    ```bash
-   pip install --user fastapi-guard-agent
+   pip install --user guard-agent
    ```
 
 2. Use virtual environment (recommended):
    ```bash
    python -m venv venv
    source venv/bin/activate
-   pip install fastapi-guard-agent
+   pip install guard-agent
    ```
 
 3. On systems with permission issues, consider using `sudo` (not recommended):
    ```bash
-   sudo pip install fastapi-guard-agent
+   sudo pip install guard-agent
    ```
 
 ## Post-Installation Guidance
 
-Following successful installation of `fastapi-guard-agent`, proceed with:
+Following successful installation of `guard-agent`, proceed with:
 
 1. **[Getting Started Guide](tutorial/getting-started.md)** - Comprehensive implementation walkthrough
 2. **[Configuration Reference](tutorial/configuration.md)** - Detailed configuration parameter documentation
 3. **[Integration Patterns](tutorial/integration.md)** - Advanced integration architectures
 4. **[Implementation Examples](examples/index.md)** - Production-ready deployment patterns
+
+### Get an API Key
+
+The agent reports to the Guard management platform. Sign in or create a project at [**app.guard-core.com**](https://app.guard-core.com) to obtain the `api_key` and `project_id` used in the configuration examples above. You can also experiment with the full Guard stack — no install required — at [**playground.guard-core.com**](https://playground.guard-core.com).
 
 ## System Requirements Summary
 

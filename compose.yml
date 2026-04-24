@@ -1,14 +1,14 @@
 services:
-    fastapi-guard-agent:
+    guard-agent:
       build:
         context: .
         args:
           PYTHON_VERSION: ${PYTHON_VERSION:-3.10}
-      image: fastapi-guard-agent-py${PYTHON_VERSION:-3.10}
+      image: guard-agent-py${PYTHON_VERSION:-3.10}
       command: pytest -v --cov=.
       environment:
         - REDIS_URL=redis://redis:6379
-        - REDIS_PREFIX=${REDIS_PREFIX:-"test:fastapi_guard_agent:"}
+        - REDIS_PREFIX=${REDIS_PREFIX:-"test:guard_agent:"}
         - IPINFO_TOKEN=${IPINFO_TOKEN:-"test_token"}
       volumes:
         - ./guard_agent:/app/guard_agent:z
@@ -29,4 +29,3 @@ services:
 
 volumes:
   redis-data:
-

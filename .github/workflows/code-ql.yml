@@ -51,11 +51,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Started'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - CodeQL'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - CodeQL'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':mag:'
           TITLE: 'CodeQL Started'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             *CODEQL TRIGGERED!*
@@ -83,11 +83,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Success'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - CodeQL'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - CodeQL'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':gem:'
           TITLE: 'CodeQL Successful'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             Commit message:
@@ -107,11 +107,11 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           STATUS: 'Failed'
           CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-          AUTHOR_NAME: 'FastAPI Guard Agent - CodeQL'
-          AUTHOR_LINK: 'https://github.com/rennf93/fastapi-guard-agent'
+          AUTHOR_NAME: 'Guard Agent - CodeQL'
+          AUTHOR_LINK: 'https://github.com/rennf93/guard-agent'
           AUTHOR_ICON: ':skull:'
           TITLE: 'CodeQL Failed'
-          TITLE_LINK: 'https://github.com/rennf93/fastapi-guard-agent/actions'
+          TITLE_LINK: 'https://github.com/rennf93/guard-agent/actions'
           MESSAGE: |
             .
             CodeQL failed for commit:

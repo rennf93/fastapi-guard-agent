@@ -1,9 +1,9 @@
-site_name: FastAPI Guard Agent
-site_description: Reporting Agent for FastAPI Guard. Collects and sends metrics and events from FastAPI Guard.
-site_url: https://rennf93.github.io/fastapi-guard-agent/latest/
-repo_name: rennf93/fastapi-guard-agent
-repo_url: https://github.com/rennf93/fastapi-guard-agent
-edit_uri: edit/main/docs/
+site_name: Guard Agent
+site_description: Framework-agnostic telemetry and monitoring agent for the Guard security ecosystem (fastapi-guard, flaskapi-guard, djangoapi-guard, tornadoapi-guard).
+site_url: https://rennf93.github.io/guard-agent/latest/
+repo_name: rennf93/guard-agent
+repo_url: https://github.com/rennf93/guard-agent
+edit_uri: edit/master/docs/
 
 theme:
   name: material
@@ -99,9 +99,23 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/rennf93/fastapi-guard-agent
+      link: https://github.com/rennf93/guard-agent
+      name: GitHub
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/fastapi-guard-agent/
+      link: https://pypi.org/project/guard-agent/
+      name: PyPI
+    - icon: material/web
+      link: https://guard-core.com
+      name: guard-core.com
+    - icon: material/view-dashboard
+      link: https://app.guard-core.com
+      name: Dashboard (app.guard-core.com)
+    - icon: material/flask
+      link: https://playground.guard-core.com
+      name: Playground (playground.guard-core.com)
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/ZW7ZJbjMkK
+      name: Discord
 
   analytics:
     provider: google
@@ -119,32 +133,32 @@ extra:
           data: 0
           note: >-
             Thanks for your feedback! Help us improve by using our
-            <a href="https://github.com/rennf93/fastapi-guard-agent/issues/new">issue tracker</a>.
+            <a href="https://github.com/rennf93/guard-agent/issues/new">issue tracker</a>.
 
   generator: false
   meta:
     - property: og:type
       content: website
     - property: og:title
-      content: FastAPI Guard Agent - Reporting Agent for FastAPI Guard
+      content: Guard Agent - Framework-Agnostic Security Telemetry for Python Web Apps
     - property: og:description
-      content: Reporting Agent for FastAPI Guard. Collects and sends metrics and events from FastAPI Guard.
+      content: Framework-agnostic telemetry and monitoring agent for the Guard security ecosystem (fastapi-guard, flaskapi-guard, djangoapi-guard, tornadoapi-guard).
     - property: og:image
-      content: https://rennf93.github.io/fastapi-guard-agent/assets/big_logo.svg
+      content: https://rennf93.github.io/guard-agent/assets/big_logo.svg
     - name: keywords
-      content: fastapi, security, middleware, python, ip control, rate limiting, penetration detection
+      content: fastapi, flask, django, tornado, security, middleware, python, telemetry, monitoring, ip control, rate limiting, penetration detection
 
   version:
     provider: mike
     default: latest
     version_selector: true
-    json_file: /fastapi-guard-agent/versions.json
+    json_file: /guard-agent/versions.json
 
   author:
     name: Renzo Franceschini
     url: https://github.com/rennf93
 
-copyright: FastAPI Guard Agent by
+copyright: Guard Agent by
 
 extra_css:
   - css/custom.css
