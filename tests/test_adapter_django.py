@@ -33,6 +33,7 @@ def setup_module(_module: object) -> None:
         category=RuntimeWarning,
     )
 
+
 if not settings.configured:
     settings.configure(
         DEBUG=False,
