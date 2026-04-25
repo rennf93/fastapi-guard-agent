@@ -1233,3 +1233,97 @@ class TestHTTPTransportRetryAfter:
 
         sleep_calls = [c.args[0] for c in mock_sleep.call_args_list if c.args]
         assert max(sleep_calls) <= 300.0
+
+    def test_register_fork_hook_no_op_when_register_at_fork_unavailable(
+        self, agent_config: AgentConfig
+    ) -> None:
+        with patch("guard_agent.transport.os") as mock_os:
+            mock_os.getpid.return_value = 4242
+            del mock_os.register_at_fork
+            HTTPTransport(agent_config)
+
+    def test_register_fork_hook_swallows_register_failure(
+        self, agent_config: AgentConfig
+    ) -> None:
+        with patch(
+            "guard_agent.transport.os.register_at_fork",
+            side_effect=RuntimeError("fork registration not allowed"),
+        ):
+            HTTPTransport(agent_config)
+
+    @pytest.mark.asyncio
+    async def test_send_with_retry_records_failure_after_retry_after_attempts_exhausted(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        agent_config.retry_attempts = 1
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        rate_limited_response = MagicMock()
+        rate_limited_response.status_code = 429
+        rate_limited_response.headers = {"Retry-After": "5"}
+        rate_limited_response.url = "http://test/api/v1/events"
+        mock_client.post.side_effect = [
+            rate_limited_response,
+            rate_limited_response,
+        ]
+
+        before = transport.requests_failed
+        with patch("guard_agent.transport.asyncio.sleep", new_callable=AsyncMock):
+            result = await transport._send_with_retry(
+                "/api/v1/events", {"events": []}, "events"
+            )
+
+        assert result is False
+        assert transport.requests_failed == before + 1
+
+    @pytest.mark.asyncio
+    async def test_get_with_retry_honors_retry_after_then_succeeds(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        agent_config.retry_attempts = 1
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        rate_limited_response = MagicMock()
+        rate_limited_response.status_code = 429
+        rate_limited_response.headers = {"Retry-After": "8"}
+        rate_limited_response.url = "http://test/api/v1/rules"
+
+        ok_response = AsyncMock()
+        ok_response.status_code = 200
+        ok_response.json = MagicMock(return_value={"rule_id": "r1", "version": 2})
+        ok_response.headers = {}
+        ok_response.url = "http://test/api/v1/rules"
+
+        mock_client.get.side_effect = [rate_limited_response, ok_response]
+
+        with patch(
+            "guard_agent.transport.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
+            result = await transport._get_with_retry("/api/v1/rules")
+
+        assert result == {"rule_id": "r1", "version": 2}
+        sleep_args = [c.args[0] for c in mock_sleep.call_args_list if c.args]
+        assert 8.0 in sleep_args
+
+    @pytest.mark.asyncio
+    async def test_get_with_retry_records_failure_after_retry_after_attempts_exhausted(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        agent_config.retry_attempts = 1
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        rate_limited_response = MagicMock()
+        rate_limited_response.status_code = 429
+        rate_limited_response.headers = {"Retry-After": "3"}
+        rate_limited_response.url = "http://test/api/v1/rules"
+        mock_client.get.side_effect = [rate_limited_response, rate_limited_response]
+
+        before = transport.requests_failed
+        with patch("guard_agent.transport.asyncio.sleep", new_callable=AsyncMock):
+            result = await transport._get_with_retry("/api/v1/rules")
+
+        assert result is None
+        assert transport.requests_failed == before + 1

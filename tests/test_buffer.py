@@ -803,3 +803,114 @@ class TestBufferConfirmAndRequeue:
 
         assert len(events) == 1
         assert mock_redis_handler.delete.call_count == 1
+
+    def test_forget_oldest_event_key_no_op_when_buffer_empty(
+        self, buffer: EventBuffer
+    ) -> None:
+        buffer._forget_oldest_event_key()
+
+    def test_forget_oldest_metric_key_no_op_when_buffer_empty(
+        self, buffer: EventBuffer
+    ) -> None:
+        buffer._forget_oldest_metric_key()
+
+    @pytest.mark.asyncio
+    async def test_confirm_event_redis_keys_no_op_when_redis_missing(
+        self, buffer: EventBuffer
+    ) -> None:
+        await buffer.confirm_event_redis_keys(["evt_1"])
+
+    @pytest.mark.asyncio
+    async def test_confirm_event_redis_keys_no_op_on_empty_list(
+        self, buffer: EventBuffer, mock_redis_handler: AsyncMock
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer.confirm_event_redis_keys([])
+        assert mock_redis_handler.delete.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_confirm_event_redis_keys_swallows_redis_failure(
+        self,
+        buffer: EventBuffer,
+        mock_redis_handler: AsyncMock,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        mock_redis_handler.delete.side_effect = RuntimeError("redis down")
+
+        with caplog.at_level("WARNING", logger="guard_agent.buffer"):
+            await buffer.confirm_event_redis_keys(["evt_1"])
+
+        assert any(
+            "Failed to delete confirmed event key" in r.message for r in caplog.records
+        )
+
+    @pytest.mark.asyncio
+    async def test_confirm_metric_redis_keys_no_op_when_redis_missing(
+        self, buffer: EventBuffer
+    ) -> None:
+        await buffer.confirm_metric_redis_keys(["m_1"])
+
+    @pytest.mark.asyncio
+    async def test_confirm_metric_redis_keys_no_op_on_empty_list(
+        self, buffer: EventBuffer, mock_redis_handler: AsyncMock
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer.confirm_metric_redis_keys([])
+        assert mock_redis_handler.delete.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_confirm_metric_redis_keys_swallows_redis_failure(
+        self,
+        buffer: EventBuffer,
+        mock_redis_handler: AsyncMock,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        mock_redis_handler.delete.side_effect = RuntimeError("redis down")
+
+        with caplog.at_level("WARNING", logger="guard_agent.buffer"):
+            await buffer.confirm_metric_redis_keys(["m_1"])
+
+        assert any(
+            "Failed to delete confirmed metric key" in r.message for r in caplog.records
+        )
+
+    @pytest.mark.asyncio
+    async def test_requeue_events_drops_when_buffer_already_full(
+        self, buffer: EventBuffer, security_event: SecurityEvent
+    ) -> None:
+        buffer.config.buffer_size = 1
+        buffer.event_buffer = type(buffer.event_buffer)(maxlen=1)
+        await buffer.add_event(security_event)
+
+        before_dropped = buffer.events_dropped
+        buffer.requeue_events_in_memory([security_event], ["evt_x"])
+
+        assert buffer.events_dropped == before_dropped + 1
+        assert len(buffer.event_buffer) == 1
+
+    @pytest.mark.asyncio
+    async def test_requeue_metrics_restores_for_retry_and_drops_overflow(
+        self,
+        buffer: EventBuffer,
+        security_metric: SecurityMetric,
+        mock_redis_handler: AsyncMock,
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer.add_metric(security_metric)
+        metrics, keys = await buffer.flush_metrics_with_keys()
+        assert len(buffer.metric_buffer) == 0
+
+        buffer.requeue_metrics_in_memory(metrics, keys)
+        assert len(buffer.metric_buffer) == 1
+        assert id(buffer.metric_buffer[0]) in buffer._metric_redis_keys
+
+        buffer.config.buffer_size = 1
+        buffer.metric_buffer = type(buffer.metric_buffer)(maxlen=1)
+        await buffer.add_metric(security_metric)
+
+        before_dropped = buffer.metrics_dropped
+        buffer.requeue_metrics_in_memory([security_metric], ["m_x"])
+        assert buffer.metrics_dropped == before_dropped + 1
+        assert len(buffer.metric_buffer) == 1

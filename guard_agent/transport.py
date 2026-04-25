@@ -1,4 +1,5 @@
 import asyncio
+import gzip
 import logging
 import os
 from typing import Any
@@ -89,6 +90,16 @@ class HTTPTransport(TransportProtocol):
             self._reset_after_fork()
         if self._client is None or self._client.is_closed:
             await self.initialize()
+
+    def _maybe_compress(self, json_text: str) -> tuple[bytes, dict[str, str]]:
+        """Return body bytes plus Content-Encoding header when compression applies."""
+        raw = json_text.encode("utf-8")
+        if (
+            not self.config.compression_enabled
+            or len(raw) < self.config.compression_threshold
+        ):
+            return raw, {}
+        return gzip.compress(raw), {"Content-Encoding": "gzip"}
 
     def _init_encryption(self) -> None:
         """Initialize encryption if configured."""
@@ -362,15 +373,21 @@ class HTTPTransport(TransportProtocol):
                     )
 
                     json_data = await safe_json_serialize(encrypted_data)
-                    self.bytes_sent += len(json_data.encode("utf-8"))
+                    body, headers = self._maybe_compress(json_data)
+                    self.bytes_sent += len(body)
 
-                    response = await self._client.post(encrypted_url, content=json_data)
+                    response = await self._client.post(
+                        encrypted_url, content=body, headers=headers
+                    )
                     return await self._handle_response(response)
                 else:
                     json_data = await safe_json_serialize(data)
-                    self.bytes_sent += len(json_data.encode("utf-8"))
+                    body, headers = self._maybe_compress(json_data)
+                    self.bytes_sent += len(body)
 
-                    response = await self._client.post(url, content=json_data)
+                    response = await self._client.post(
+                        url, content=body, headers=headers
+                    )
                     return await self._handle_response(response)
 
             elif method == "GET":

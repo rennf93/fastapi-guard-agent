@@ -80,6 +80,15 @@ class AgentConfig(BaseModel):
         description="Project-specific encryption key for secure telemetry transmission",
     )
 
+    compression_enabled: bool = Field(
+        default=True,
+        description="Gzip-compress request bodies above compression_threshold bytes",
+    )
+    compression_threshold: int = Field(
+        default=1024,
+        description="Minimum body size in bytes before gzip compression applies",
+    )
+
     @field_validator("endpoint")  # type: ignore
     @classmethod
     def validate_endpoint(cls, v: str) -> str:
