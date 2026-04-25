@@ -3,6 +3,8 @@ Version bump helper script for guard-agent.
 
 Updates the version string across all files that reference it:
 - pyproject.toml
+- guard_agent/_version.py (single source of truth imported by guard_agent.__init__
+  and guard_agent.transport for User-Agent + EventBatch.agent_version)
 - .mike.yml
 - docs/versions/versions.json
 - docs/index.md
@@ -77,6 +79,30 @@ def update_pyproject_toml(version: str) -> bool:
     new_content = pattern.sub(f'{match.group(1)}"{version}"', content)
     path.write_text(new_content)
     print(f"  pyproject.toml: updated to {version}")
+    return True
+
+
+def update_package_version_module(version: str) -> bool:
+    """Update __version__ in guard_agent/_version.py (single source of truth)."""
+    path = PROJECT_ROOT / "guard_agent" / "_version.py"
+    if not path.exists():
+        print(f"  ERROR: Could not find {path.relative_to(PROJECT_ROOT)}")
+        return False
+    content = path.read_text()
+    pattern = re.compile(r'^(__version__\s*=\s*)"[^"]*"', re.MULTILINE)
+    match = pattern.search(content)
+    if not match:
+        print(
+            "  ERROR: Could not find __version__ in guard_agent/_version.py"
+        )
+        return False
+    current = re.search(r'"([^"]*)"', match.group(0))
+    if current and current.group(1) == version:
+        print(f"  guard_agent/_version.py: already set to {version}")
+        return True
+    new_content = pattern.sub(f'{match.group(1)}"{version}"', content)
+    path.write_text(new_content)
+    print(f"  guard_agent/_version.py: updated to {version}")
     return True
 
 
@@ -252,6 +278,7 @@ def main() -> int:
 
     updaters: list[tuple[str, Callable[[str], bool]]] = [
         ("pyproject.toml", update_pyproject_toml),
+        ("guard_agent/_version.py", update_package_version_module),
         (".mike.yml", update_mike_yml),
         ("docs/versions/versions.json", update_versions_json),
         ("changelogs", update_changelogs),

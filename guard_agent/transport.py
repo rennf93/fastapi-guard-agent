@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 
+from guard_agent._version import __version__ as _AGENT_VERSION
 from guard_agent.encryption import EncryptionError, PayloadEncryptor, create_encryptor
 from guard_agent.models import (
     AgentConfig,
@@ -129,7 +130,7 @@ class HTTPTransport(TransportProtocol):
 
         try:
             headers = {
-                "User-Agent": "FastAPI-Guard-Agent/1.1.0",
+                "User-Agent": f"guard-agent/{_AGENT_VERSION}",
                 "Content-Type": "application/json",
                 "X-API-Key": self.config.api_key,
             }
@@ -174,7 +175,7 @@ class HTTPTransport(TransportProtocol):
                 events=events,
                 batch_id=generate_batch_id(),
                 created_at=get_current_timestamp(),
-                agent_version="1.1.0",
+                agent_version=_AGENT_VERSION,
             )
 
             return await self._send_with_retry(
@@ -197,7 +198,7 @@ class HTTPTransport(TransportProtocol):
                 metrics=metrics,
                 batch_id=generate_batch_id(),
                 created_at=get_current_timestamp(),
-                agent_version="1.1.0",
+                agent_version=_AGENT_VERSION,
             )
 
             return await self._send_with_retry(
@@ -365,7 +366,7 @@ class HTTPTransport(TransportProtocol):
                     encrypted_data = {
                         "encrypted_payload": encrypted_payload,
                         "batch_id": data.get("batch_id"),
-                        "agent_version": "1.1.0",
+                        "agent_version": _AGENT_VERSION,
                     }
 
                     encrypted_url = (

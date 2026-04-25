@@ -96,6 +96,8 @@ config = SecurityConfig(
     agent_enable_metrics=True,            # Collect performance metrics
     agent_retry_attempts=3,               # HTTP retry attempts
     agent_timeout=30,                     # HTTP request timeout
+    agent_compression_enabled=True,       # Gzip request bodies above threshold
+    agent_compression_threshold=1024,     # Bytes; bodies smaller than this skip gzip
 
     # Dynamic rules settings
     enable_dynamic_rules=True,            # Enable dynamic rule fetching
@@ -135,6 +137,37 @@ graph TD
 3. **Batch Transmission**: Efficient batching algorithms minimize network overhead while maintaining low latency
 4. **Backend Processing**: Cloud-based analytics engine processes telemetry for threat detection and policy updates
 5. **Policy Synchronization**: Updated security rules are atomically applied without service disruption
+
+### Step 3.1: Outgoing Body Compression
+
+The agent gzip-compresses outgoing telemetry batches whose JSON body exceeds `agent_compression_threshold` bytes (default 1024). When compression applies the request is sent with `Content-Encoding: gzip` and `EventBatch.compressed=True`. Smaller batches are sent as plain JSON to avoid the encode/decode cost.
+
+Why it matters:
+
+- **Bandwidth.** A typical batch of 100 security events compresses 5–10×. Customers running guard-agent inside high-traffic services see meaningful egress savings, especially with `agent_buffer_size=500` and a 60-second flush interval.
+- **Tail latency.** Smaller payloads mean fewer TCP round-trips and faster TLS writes. Useful when the agent shares a network path with the application's own traffic.
+- **Cost.** When the SaaS endpoint is a managed gateway (CloudFront, Cloudflare, GCP HTTP(S) LB), compression cuts metered egress and request size charges.
+
+Compatibility:
+
+| Endpoint | Default `compression_enabled=True` |
+|---|---|
+| **Guard Core SaaS (`https://api.guard-core.com`)** | Works as-is. The SaaS decompresses gzip request bodies via its `GzipRequestMiddleware` before pydantic validation. No customer action required. |
+| **Custom ingestion endpoint without gzip request decoding** | Set `agent_compression_enabled=False`. Most plain FastAPI / Flask / Django apps do not auto-decompress gzip *request* bodies; compressed batches will fail body parsing on those backends. |
+
+Tuning:
+
+```python
+config = SecurityConfig(
+    # ... other settings ...
+    agent_compression_enabled=True,    # Default; gzip large batches
+    agent_compression_threshold=1024,  # Skip gzip for bodies smaller than 1 KiB
+)
+```
+
+Lower the threshold (e.g. 256) for chatty deployments where most batches are tiny but still worth compressing. Raise it (e.g. 4096) for batches that are mostly small-and-frequent and you would rather save the gzip CPU.
+
+If you self-host an ingestion endpoint, the SaaS-side middleware lives in `guard_core_api.core.gzip_request_middleware.GzipRequestMiddleware`. Any backend with an equivalent middleware (decompresses `Content-Encoding: gzip` before body parsing, returns 400 on malformed gzip) will be compatible with the default agent setting.
 
 ### Step 4: Advanced Security Controls
 

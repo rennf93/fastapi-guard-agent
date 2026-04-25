@@ -7,6 +7,7 @@ monitoring, analytics, and dynamic rule management through a centralized
 management platform.
 """
 
+from guard_agent._version import __version__
 from guard_agent.buffer import EventBuffer
 from guard_agent.client import GuardAgentHandler, guard_agent
 from guard_agent.models import (
@@ -35,8 +36,6 @@ from guard_agent.utils import (
     truncate_payload,
     validate_config,
 )
-
-__version__ = "2.1.0"
 
 __all__ = [
     "guard_agent",

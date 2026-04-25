@@ -3,6 +3,33 @@ Release Notes
 
 ___
 
+v2.2.0 (2026-04-25)
+-------------------
+
+Production Safety (v2.2.0)
+--------------------------
+- **Fork-safe transport.** `HTTPTransport.__init__` registers an `os.register_at_fork(after_in_child=...)` hook that resets the inherited `httpx.AsyncClient`, `CircuitBreaker`, and `RateLimiter` in every forked child. A pid-drift check runs on every send so spawn-style workers (uvicorn `--workers` without `--preload`) get the same protection. Fixes a class of bugs where Gunicorn `--preload` workers would corrupt the shared socket between parent and child.
+- **Observable buffer drops.** `EventBuffer` now exposes `events_dropped` and `metrics_dropped` counters via `get_buffer_stats()`. The first drop and every 100th drop log a `WARN`. Previously the deque silently evicted the oldest event when full.
+- **Honor server `Retry-After`.** A 429 response now raises `RateLimitedError(retry_after_seconds=...)`, and `_send_with_retry` / `_get_with_retry` sleep that exact value (capped at 300s) instead of falling back to client-side exponential backoff. Prevents the agent from hammering an already-overloaded SaaS.
+- **Persist-confirm Redis recovery.** Redis persist keys are now `event_{ns}_{uuid8}` / `metric_{ns}_{uuid8}` so two events arriving in the same millisecond no longer collide. Deletion happens only after the transport confirms via the new `confirm_event_redis_keys` / `confirm_metric_redis_keys` helpers, and `requeue_events_in_memory` / `requeue_metrics_in_memory` push unsent events back to the front of the buffer on transport failure. Previously a transport failure cleared both deque and Redis simultaneously, dropping the events permanently.
+- **`BufferProtocol` adds new methods.** `flush_events_with_keys`, `flush_metrics_with_keys`, `confirm_event_redis_keys`, `confirm_metric_redis_keys`, `requeue_events_in_memory`, `requeue_metrics_in_memory`. Custom buffer implementations need to implement these or fall back to the bundled `EventBuffer`.
+
+Compression (v2.2.0)
+--------------------
+- **Gzip compression of outgoing batch bodies** above `compression_threshold` (default 1024 bytes). When the body exceeds the threshold the agent compresses with gzip and sends `Content-Encoding: gzip`; the Guard Core SaaS decompresses request bodies via its `GzipRequestMiddleware` before pydantic validation. Smaller bodies skip compression and ship as plain JSON.
+- **Default is ON.** `AgentConfig.compression_enabled=True`. Set `compression_enabled=False` if you are pointing the agent at an ingestion endpoint that does not handle `Content-Encoding: gzip` request bodies (e.g. a custom backend without a decompression middleware).
+- `EventBatch.compressed` field now reflects whether the body was actually compressed.
+
+Versioning hygiene (v2.2.0)
+---------------------------
+- `agent_version` in HTTP request headers (`User-Agent`) and batch payloads now derives from `guard_agent.__version__` instead of the hardcoded `"1.1.0"` string the previous releases were sending. SaaS-side analytics that key off `agent_version` will now see the real installed version.
+
+Test coverage (v2.2.0)
+----------------------
+- Test coverage raised to **100%** across `guard_agent/buffer.py`, `client.py`, `encryption.py`, `models.py`, `protocols.py`, `transport.py`, `utils.py` (1053 statements, 0 missed). Adds the previously-missing branches for the fork-hook unavailable path, the Retry-After exhausted-attempts path, the GET retry-after path, the buffer overflow drop accounting, the empty-key forget paths, the Redis-failure swallowing in `confirm_event_redis_keys` / `confirm_metric_redis_keys`, and the `requeue_metrics_in_memory` end-to-end + overflow-drop paths.
+
+___
+
 v2.1.0 (2026-04-24)
 -------------------
 

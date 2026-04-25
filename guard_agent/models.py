@@ -82,7 +82,11 @@ class AgentConfig(BaseModel):
 
     compression_enabled: bool = Field(
         default=True,
-        description="Gzip-compress request bodies above compression_threshold bytes",
+        description=(
+            "Gzip-compress outgoing batch bodies above compression_threshold "
+            "bytes. Set to False if your ingestion endpoint does not handle "
+            "Content-Encoding: gzip request bodies."
+        ),
     )
     compression_threshold: int = Field(
         default=1024,
