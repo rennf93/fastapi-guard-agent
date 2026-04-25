@@ -1327,3 +1327,73 @@ class TestHTTPTransportRetryAfter:
 
         assert result is None
         assert transport.requests_failed == before + 1
+
+
+class TestHTTPTransportCompression:
+    """Tests for the gzip compression of outgoing request bodies."""
+
+    def test_maybe_compress_skips_when_below_threshold(
+        self, agent_config: AgentConfig
+    ) -> None:
+        agent_config.compression_enabled = True
+        agent_config.compression_threshold = 10_000
+        transport = HTTPTransport(agent_config)
+        body, headers = transport._maybe_compress("hi")
+        assert body == b"hi"
+        assert headers == {}
+
+    def test_maybe_compress_skips_when_disabled(
+        self, agent_config: AgentConfig
+    ) -> None:
+        agent_config.compression_enabled = False
+        agent_config.compression_threshold = 1
+        transport = HTTPTransport(agent_config)
+        body, headers = transport._maybe_compress("x" * 100)
+        assert body == b"x" * 100
+        assert headers == {}
+
+    def test_maybe_compress_gzips_above_threshold(
+        self, agent_config: AgentConfig
+    ) -> None:
+        import gzip
+
+        agent_config.compression_enabled = True
+        agent_config.compression_threshold = 10
+        transport = HTTPTransport(agent_config)
+        body, headers = transport._maybe_compress("y" * 200)
+        assert headers == {"Content-Encoding": "gzip"}
+        assert gzip.decompress(body) == b"y" * 200
+        assert len(body) < 200
+
+    @pytest.mark.asyncio
+    async def test_send_events_uses_gzip_when_payload_is_large(
+        self,
+        agent_config: AgentConfig,
+        mock_client: AsyncMock,
+    ) -> None:
+        import gzip
+
+        agent_config.compression_enabled = True
+        agent_config.compression_threshold = 100
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        events = [
+            SecurityEvent(
+                timestamp=datetime.now(timezone.utc),
+                event_type="ip_banned",
+                ip_address="192.168.1.1",
+                action_taken="banned",
+                reason="x" * 4000,
+            )
+        ]
+
+        result = await transport.send_events(events)
+        assert result is True
+
+        post_call = mock_client.post.call_args
+        assert post_call.kwargs.get("headers", {}).get("Content-Encoding") == "gzip"
+        sent_body = post_call.kwargs["content"]
+        assert isinstance(sent_body, bytes)
+        decoded = gzip.decompress(sent_body)
+        assert b"ip_banned" in decoded
