@@ -13,10 +13,6 @@ documentation — Guard Agent itself is framework-agnostic.
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from itertools import tee
-from linecache import getline
-from pydoc import doc
-from doctest import Example
 from typing import Any
 
 from fastapi import FastAPI, Request
