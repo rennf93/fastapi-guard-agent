@@ -186,27 +186,37 @@ class GuardAgentHandler(AgentHandlerProtocol):
             return self._cached_rules
 
     async def flush_buffer(self) -> None:
-        """Manually flush all buffers."""
+        """Flush buffers; confirm Redis only after the transport acknowledges."""
         try:
-            events = await self.buffer.flush_events()
+            events, event_keys = await self.buffer.flush_events_with_keys()
             if events:
                 success = await self.transport.send_events(events)
                 if success:
+                    await self.buffer.confirm_event_redis_keys(event_keys)
                     self.events_sent += len(events)
                     self.logger.debug(f"Flushed {len(events)} events")
                 else:
+                    self.buffer.requeue_events_in_memory(events, event_keys)
                     self.events_failed += len(events)
-                    self.logger.warning(f"Failed to send {len(events)} events")
+                    self.logger.warning(
+                        f"Failed to send {len(events)} events; "
+                        f"requeued in memory and retained in Redis for retry"
+                    )
 
-            metrics = await self.buffer.flush_metrics()
+            metrics, metric_keys = await self.buffer.flush_metrics_with_keys()
             if metrics:
                 success = await self.transport.send_metrics(metrics)
                 if success:
+                    await self.buffer.confirm_metric_redis_keys(metric_keys)
                     self.metrics_sent += len(metrics)
                     self.logger.debug(f"Flushed {len(metrics)} metrics")
                 else:
+                    self.buffer.requeue_metrics_in_memory(metrics, metric_keys)
                     self.metrics_failed += len(metrics)
-                    self.logger.warning(f"Failed to send {len(metrics)} metrics")
+                    self.logger.warning(
+                        f"Failed to send {len(metrics)} metrics; "
+                        f"requeued in memory and retained in Redis for retry"
+                    )
 
         except Exception as e:
             self.logger.error(f"Error during buffer flush: {str(e)}")

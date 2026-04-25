@@ -10,11 +10,13 @@ from pydantic import ValidationError
 from guard_agent.models import AgentConfig
 from guard_agent.utils import (
     CircuitBreaker,
+    RateLimitedError,
     RateLimiter,
     calculate_backoff_delay,
     generate_batch_id,
     get_current_timestamp,
     hash_ip,
+    parse_retry_after_seconds,
     safe_json_deserialize,
     safe_json_serialize,
     sanitize_headers,
@@ -511,3 +513,27 @@ class TestCircuitBreaker:
                 await breaker.call(mock_func)
             assert breaker.state == "OPEN"  # Failure in HALF_OPEN re-opens breaker
             assert breaker.failure_count == 2  # Incremented failure count
+
+
+class TestParseRetryAfter:
+    """Tests for parse_retry_after_seconds and RateLimitedError."""
+
+    def test_parses_integer_seconds(self) -> None:
+        assert parse_retry_after_seconds("5") == 5.0
+
+    def test_parses_float_seconds(self) -> None:
+        assert parse_retry_after_seconds("2.5") == 2.5
+
+    def test_returns_default_for_none(self) -> None:
+        assert parse_retry_after_seconds(None, default=42.0) == 42.0
+
+    def test_returns_default_for_unparseable(self) -> None:
+        assert parse_retry_after_seconds("not-a-number", default=99.0) == 99.0
+
+    def test_clamps_negative_to_zero(self) -> None:
+        assert parse_retry_after_seconds("-5") == 0.0
+
+    def test_rate_limited_error_carries_seconds(self) -> None:
+        err = RateLimitedError(retry_after_seconds=15.0)
+        assert err.retry_after_seconds == 15.0
+        assert "15" in str(err)

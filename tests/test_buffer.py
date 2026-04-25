@@ -123,11 +123,13 @@ class TestBufferRedisIntegration:
     ) -> None:
         await buffer.initialize_redis(mock_redis_handler)
         await buffer.add_event(security_event)
-        with patch.object(
-            buffer, "_clear_events_from_redis", new_callable=AsyncMock
-        ) as mock_clear:
-            await buffer.flush_events()
-            mock_clear.assert_awaited_once_with(1)
+
+        await buffer.flush_events()
+
+        assert mock_redis_handler.delete.call_count == 1
+        args = mock_redis_handler.delete.call_args.args
+        assert args[0] == "agent_events"
+        assert args[1].startswith("event_")
 
     @pytest.mark.asyncio
     async def test_flush_metrics_with_redis(
@@ -138,11 +140,13 @@ class TestBufferRedisIntegration:
     ) -> None:
         await buffer.initialize_redis(mock_redis_handler)
         await buffer.add_metric(security_metric)
-        with patch.object(
-            buffer, "_clear_metrics_from_redis", new_callable=AsyncMock
-        ) as mock_clear:
-            await buffer.flush_metrics()
-            mock_clear.assert_awaited_once_with(1)
+
+        await buffer.flush_metrics()
+
+        assert mock_redis_handler.delete.call_count == 1
+        args = mock_redis_handler.delete.call_args.args
+        assert args[0] == "agent_metrics"
+        assert args[1].startswith("metric_")
 
     @pytest.mark.asyncio
     async def test_clear_buffer_with_redis(
@@ -663,7 +667,139 @@ class TestGetStats:
         assert "metrics_buffered" in stats
         assert "events_flushed" in stats
         assert "metrics_flushed" in stats
+        assert "events_dropped" in stats
+        assert "metrics_dropped" in stats
         assert "current_event_buffer_size" in stats
         assert "current_metric_buffer_size" in stats
         assert "last_flush_time" in stats
         assert "auto_flush_running" in stats
+
+
+class TestBufferOverflowDropTracking:
+    """Tests for buffer overflow drop accounting."""
+
+    @pytest.mark.asyncio
+    async def test_event_overflow_increments_drop_counter(
+        self, buffer: EventBuffer, security_event: SecurityEvent
+    ) -> None:
+        buffer.config.buffer_size = 3
+        buffer.event_buffer = type(buffer.event_buffer)(maxlen=3)
+
+        for _ in range(5):
+            await buffer.add_event(security_event)
+
+        assert len(buffer.event_buffer) == 3
+        assert buffer.events_dropped == 2
+        assert buffer.events_buffered == 5
+        assert buffer.get_stats()["events_dropped"] == 2
+
+    @pytest.mark.asyncio
+    async def test_metric_overflow_increments_drop_counter(
+        self, buffer: EventBuffer, security_metric: SecurityMetric
+    ) -> None:
+        buffer.config.buffer_size = 2
+        buffer.metric_buffer = type(buffer.metric_buffer)(maxlen=2)
+
+        for _ in range(5):
+            await buffer.add_metric(security_metric)
+
+        assert len(buffer.metric_buffer) == 2
+        assert buffer.metrics_dropped == 3
+        assert buffer.get_stats()["metrics_dropped"] == 3
+
+    @pytest.mark.asyncio
+    async def test_no_drops_when_buffer_has_capacity(
+        self, buffer: EventBuffer, security_event: SecurityEvent
+    ) -> None:
+        for _ in range(buffer.config.buffer_size - 1):
+            await buffer.add_event(security_event)
+
+        assert buffer.events_dropped == 0
+
+    @pytest.mark.asyncio
+    async def test_overflow_logs_warning_at_first_drop(
+        self,
+        buffer: EventBuffer,
+        security_event: SecurityEvent,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        buffer.config.buffer_size = 1
+        buffer.event_buffer = type(buffer.event_buffer)(maxlen=1)
+        await buffer.add_event(security_event)
+
+        with caplog.at_level("WARNING", logger="guard_agent.buffer"):
+            await buffer.add_event(security_event)
+
+        assert any("buffer full" in r.message.lower() for r in caplog.records)
+
+
+class TestBufferConfirmAndRequeue:
+    """Tests for transport-acked Redis confirmation and requeue on failure."""
+
+    @pytest.mark.asyncio
+    async def test_persisted_event_keys_are_unique_per_event(
+        self,
+        buffer: EventBuffer,
+        security_event: SecurityEvent,
+        mock_redis_handler: AsyncMock,
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer.add_event(security_event)
+        await buffer.add_event(security_event)
+
+        keys = [c.args[1] for c in mock_redis_handler.set_key.call_args_list]
+        assert len(keys) == 2
+        assert len(set(keys)) == 2
+        assert all(k.startswith("event_") for k in keys)
+
+    @pytest.mark.asyncio
+    async def test_flush_with_keys_does_not_delete_redis_until_confirmed(
+        self,
+        buffer: EventBuffer,
+        security_event: SecurityEvent,
+        mock_redis_handler: AsyncMock,
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer.add_event(security_event)
+
+        events, keys = await buffer.flush_events_with_keys()
+
+        assert len(events) == 1
+        assert len(keys) == 1
+        assert mock_redis_handler.delete.call_count == 0
+
+        await buffer.confirm_event_redis_keys(keys)
+        assert mock_redis_handler.delete.call_count == 1
+        assert mock_redis_handler.delete.call_args.args == ("agent_events", keys[0])
+
+    @pytest.mark.asyncio
+    async def test_requeue_restores_events_for_retry(
+        self,
+        buffer: EventBuffer,
+        security_event: SecurityEvent,
+        mock_redis_handler: AsyncMock,
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer.add_event(security_event)
+
+        events, keys = await buffer.flush_events_with_keys()
+        assert len(buffer.event_buffer) == 0
+
+        buffer.requeue_events_in_memory(events, keys)
+        assert len(buffer.event_buffer) == 1
+        assert id(buffer.event_buffer[0]) in buffer._event_redis_keys
+
+    @pytest.mark.asyncio
+    async def test_legacy_flush_events_still_deletes_redis(
+        self,
+        buffer: EventBuffer,
+        security_event: SecurityEvent,
+        mock_redis_handler: AsyncMock,
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer.add_event(security_event)
+
+        events = await buffer.flush_events()
+
+        assert len(events) == 1
+        assert mock_redis_handler.delete.call_count == 1

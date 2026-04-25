@@ -10,6 +10,27 @@ from typing import Any
 from guard_agent.models import AgentConfig
 
 
+class RateLimitedError(Exception):
+    """Raised on HTTP 429; carries server-supplied Retry-After in seconds."""
+
+    def __init__(self, retry_after_seconds: float, message: str | None = None):
+        self.retry_after_seconds = retry_after_seconds
+        super().__init__(
+            message or f"Rate limited by server, retry after {retry_after_seconds:.1f}s"
+        )
+
+
+def parse_retry_after_seconds(header_value: str | None, default: float = 60.0) -> float:
+    """Parse RFC 7231 Retry-After header (integer seconds) into a float."""
+    if header_value is None:
+        return default
+    try:
+        value = float(header_value)
+    except (TypeError, ValueError):
+        return default
+    return max(0.0, value)
+
+
 def generate_batch_id() -> str:
     """Generate a unique batch ID for event batches."""
     timestamp = str(int(time.time() * 1000))

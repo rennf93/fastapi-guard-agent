@@ -231,17 +231,19 @@ class TestGuardAgentHandler:
                 value=1.0,
             )
         ]
-        handler.buffer.flush_events.return_value = test_events
-        handler.buffer.flush_metrics.return_value = test_metrics
+        handler.buffer.flush_events_with_keys.return_value = (test_events, ["ek1"])
+        handler.buffer.flush_metrics_with_keys.return_value = (test_metrics, ["mk1"])
         handler.transport.send_events.return_value = True
         handler.transport.send_metrics.return_value = True
 
         await handler.flush_buffer()
 
-        handler.buffer.flush_events.assert_called_once()
-        handler.buffer.flush_metrics.assert_called_once()
+        handler.buffer.flush_events_with_keys.assert_called_once()
+        handler.buffer.flush_metrics_with_keys.assert_called_once()
         handler.transport.send_events.assert_called_once_with(test_events)
         handler.transport.send_metrics.assert_called_once_with(test_metrics)
+        handler.buffer.confirm_event_redis_keys.assert_awaited_once_with(["ek1"])
+        handler.buffer.confirm_metric_redis_keys.assert_awaited_once_with(["mk1"])
         assert handler.events_sent == 1
         assert handler.metrics_sent == 1
 
@@ -361,12 +363,14 @@ class TestGuardAgentHandler:
         """Test buffer flush when sending events/metrics fails."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
+        handler.buffer.requeue_events_in_memory = MagicMock()
+        handler.buffer.requeue_metrics_in_memory = MagicMock()
         handler.transport = AsyncMock()
 
         test_events = [MagicMock()]
         test_metrics = [MagicMock()]
-        handler.buffer.flush_events.return_value = test_events
-        handler.buffer.flush_metrics.return_value = test_metrics
+        handler.buffer.flush_events_with_keys.return_value = (test_events, ["ek"])
+        handler.buffer.flush_metrics_with_keys.return_value = (test_metrics, ["mk"])
         handler.transport.send_events.return_value = False
         handler.transport.send_metrics.return_value = False
 
@@ -376,6 +380,13 @@ class TestGuardAgentHandler:
         assert handler.metrics_failed == len(test_metrics)
         assert f"Failed to send {len(test_events)} events" in caplog.text
         assert f"Failed to send {len(test_metrics)} metrics" in caplog.text
+        handler.buffer.confirm_event_redis_keys.assert_not_awaited()
+        handler.buffer.requeue_events_in_memory.assert_called_once_with(
+            test_events, ["ek"]
+        )
+        handler.buffer.requeue_metrics_in_memory.assert_called_once_with(
+            test_metrics, ["mk"]
+        )
 
     @pytest.mark.asyncio
     async def test_flush_buffer_exception(
@@ -384,7 +395,7 @@ class TestGuardAgentHandler:
         """Test exception handling during buffer flush."""
         handler = GuardAgentHandler(agent_config)
         handler.buffer = AsyncMock()
-        handler.buffer.flush_events.side_effect = Exception("Flush error")
+        handler.buffer.flush_events_with_keys.side_effect = Exception("Flush error")
 
         await handler.flush_buffer()
         assert "Error during buffer flush: Flush error" in caplog.text

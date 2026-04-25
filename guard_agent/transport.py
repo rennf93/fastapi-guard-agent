@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from typing import Any
 
 import httpx
@@ -16,12 +17,16 @@ from guard_agent.models import (
 from guard_agent.protocols import TransportProtocol
 from guard_agent.utils import (
     CircuitBreaker,
+    RateLimitedError,
     RateLimiter,
     calculate_backoff_delay,
     generate_batch_id,
     get_current_timestamp,
+    parse_retry_after_seconds,
     safe_json_serialize,
 )
+
+_MAX_RETRY_AFTER_SECONDS = 300.0
 
 
 class HTTPTransport(TransportProtocol):
@@ -35,6 +40,7 @@ class HTTPTransport(TransportProtocol):
         self.logger = logging.getLogger(__name__)
 
         self._client: httpx.AsyncClient | None = None
+        self._pid = os.getpid()
 
         self._encryptor: PayloadEncryptor | None = None
         self._encryption_enabled = False
@@ -51,6 +57,38 @@ class HTTPTransport(TransportProtocol):
         self.requests_sent = 0
         self.requests_failed = 0
         self.bytes_sent = 0
+
+        self._register_fork_hook()
+
+    def _register_fork_hook(self) -> None:
+        """Schedule transport reset after fork; no-op on platforms without fork."""
+        register_at_fork = getattr(os, "register_at_fork", None)
+        if register_at_fork is None:
+            return
+        try:
+            register_at_fork(after_in_child=self._reset_after_fork)
+        except Exception as e:
+            self.logger.debug(f"register_at_fork unavailable: {e}")
+
+    def _reset_after_fork(self) -> None:
+        """Drop transport state inherited from the parent process."""
+        self._client = None
+        self._pid = os.getpid()
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=5, recovery_timeout=60.0
+        )
+        self.rate_limiter = RateLimiter(max_calls=100, time_window=60.0)
+        self.requests_sent = 0
+        self.requests_failed = 0
+        self.bytes_sent = 0
+
+    async def _ensure_client_for_current_process(self) -> None:
+        """Reinitialize the httpx client if the current pid differs from init pid."""
+        current_pid = os.getpid()
+        if current_pid != self._pid:
+            self._reset_after_fork()
+        if self._client is None or self._client.is_closed:
+            await self.initialize()
 
     def _init_encryption(self) -> None:
         """Initialize encryption if configured."""
@@ -210,6 +248,16 @@ class HTTPTransport(TransportProtocol):
                 else:
                     self.requests_failed += 1
 
+            except RateLimitedError as e:
+                delay = min(e.retry_after_seconds, _MAX_RETRY_AFTER_SECONDS)
+                self.logger.warning(
+                    f"Server rate-limited {data_type}; sleeping {delay:.1f}s "
+                    f"per Retry-After"
+                )
+                if attempt < self.config.retry_attempts:
+                    await asyncio.sleep(delay)
+                else:
+                    self.requests_failed += 1
             except Exception as e:
                 self.logger.warning(
                     f"Attempt {attempt + 1} failed for {data_type}: {str(e)}"
@@ -243,6 +291,16 @@ class HTTPTransport(TransportProtocol):
                 else:
                     self.requests_failed += 1
 
+            except RateLimitedError as e:
+                delay = min(e.retry_after_seconds, _MAX_RETRY_AFTER_SECONDS)
+                self.logger.warning(
+                    f"Server rate-limited GET {endpoint}; sleeping {delay:.1f}s "
+                    f"per Retry-After"
+                )
+                if attempt < self.config.retry_attempts:
+                    await asyncio.sleep(delay)
+                else:
+                    self.requests_failed += 1
             except Exception as e:
                 self.logger.warning(
                     f"GET attempt {attempt + 1} failed for {endpoint}: {str(e)}"
@@ -260,8 +318,7 @@ class HTTPTransport(TransportProtocol):
         self, method: str, endpoint: str, data: dict[str, Any] | None
     ) -> dict[str, Any] | bool:
         """Make HTTP request with proper error handling and optional encryption."""
-        if not self._client:
-            await self.initialize()
+        await self._ensure_client_for_current_process()
 
         if not self._client:
             raise Exception("Failed to initialize HTTP client")
@@ -354,8 +411,10 @@ class HTTPTransport(TransportProtocol):
             return True
 
         elif response.status_code == 429:
-            retry_after = response.headers.get("Retry-After", "60")
-            raise Exception(f"Rate limited by server, retry after {retry_after}s")
+            retry_after_seconds = parse_retry_after_seconds(
+                response.headers.get("Retry-After"), default=60.0
+            )
+            raise RateLimitedError(retry_after_seconds)
 
         elif response.status_code in [401, 403]:
             raise Exception(f"Authentication failed: {response.status_code}")
