@@ -317,49 +317,8 @@ class EventBuffer(BufferProtocol):
             return
 
         try:
-            event_keys = await self.redis_handler.keys("agent_events:*") or []
-            for key in event_keys:
-                try:
-                    short_key = key.split(":")[-1]
-                    event_data = await self.redis_handler.get_key(
-                        "agent_events", short_key
-                    )
-                    if event_data:
-                        event_dict = await safe_json_deserialize(event_data)
-                        if event_dict:
-                            event = SecurityEvent(**event_dict)
-                            self.event_buffer.append(event)
-                            self.events_buffered += 1
-                            self._event_redis_keys[id(event)] = short_key
-                    else:
-                        message = f"Failed to load event from Redis key {key}"
-                        self.logger.warning(f"{message}: No data found for key")
-                except Exception as e:
-                    self.logger.warning(
-                        f"Failed to load event from Redis key {key}: {e}"
-                    )
-
-            metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
-            for key in metric_keys:
-                try:
-                    short_key = key.split(":")[-1]
-                    metric_data = await self.redis_handler.get_key(
-                        "agent_metrics", short_key
-                    )
-                    if metric_data:
-                        metric_dict = await safe_json_deserialize(metric_data)
-                        if metric_dict:
-                            metric = SecurityMetric(**metric_dict)
-                            self.metric_buffer.append(metric)
-                            self.metrics_buffered += 1
-                            self._metric_redis_keys[id(metric)] = short_key
-                    else:
-                        message = f"Failed to load metric from Redis key {key}"
-                        self.logger.warning(f"{message}: No data found for key")
-                except Exception as e:
-                    self.logger.warning(
-                        f"Failed to load metric from Redis key {key}: {e}"
-                    )
+            await self._load_events_from_redis()
+            await self._load_metrics_from_redis()
 
             if self.event_buffer or self.metric_buffer:
                 loaded_events = f"Loaded {len(self.event_buffer)} events"
@@ -368,6 +327,62 @@ class EventBuffer(BufferProtocol):
 
         except Exception as e:
             self.logger.warning(f"Failed to load from Redis: {str(e)}")
+
+    async def _load_events_from_redis(self) -> None:
+        """Load persisted events from Redis."""
+        assert self.redis_handler is not None
+        event_keys = await self.redis_handler.keys("agent_events:*") or []
+        for key in event_keys:
+            await self._load_one_event_from_redis(key)
+
+    async def _load_one_event_from_redis(self, key: str) -> None:
+        """Load a single event from Redis, recording the key on success."""
+        assert self.redis_handler is not None
+        try:
+            short_key = key.split(":")[-1]
+            event_data = await self.redis_handler.get_key("agent_events", short_key)
+            if not event_data:
+                self.logger.warning(
+                    f"Failed to load event from Redis key {key}: No data found for key"
+                )
+                return
+            event_dict = await safe_json_deserialize(event_data)
+            if not event_dict:
+                return
+            event = SecurityEvent(**event_dict)
+            self.event_buffer.append(event)
+            self.events_buffered += 1
+            self._event_redis_keys[id(event)] = short_key
+        except Exception as e:
+            self.logger.warning(f"Failed to load event from Redis key {key}: {e}")
+
+    async def _load_metrics_from_redis(self) -> None:
+        """Load persisted metrics from Redis."""
+        assert self.redis_handler is not None
+        metric_keys = await self.redis_handler.keys("agent_metrics:*") or []
+        for key in metric_keys:
+            await self._load_one_metric_from_redis(key)
+
+    async def _load_one_metric_from_redis(self, key: str) -> None:
+        """Load a single metric from Redis, recording the key on success."""
+        assert self.redis_handler is not None
+        try:
+            short_key = key.split(":")[-1]
+            metric_data = await self.redis_handler.get_key("agent_metrics", short_key)
+            if not metric_data:
+                self.logger.warning(
+                    f"Failed to load metric from Redis key {key}: No data found for key"
+                )
+                return
+            metric_dict = await safe_json_deserialize(metric_data)
+            if not metric_dict:
+                return
+            metric = SecurityMetric(**metric_dict)
+            self.metric_buffer.append(metric)
+            self.metrics_buffered += 1
+            self._metric_redis_keys[id(metric)] = short_key
+        except Exception as e:
+            self.logger.warning(f"Failed to load metric from Redis key {key}: {e}")
 
     async def _clear_events_from_redis(self, count: int) -> None:
         """Clear flushed events from Redis."""

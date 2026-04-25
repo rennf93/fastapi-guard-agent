@@ -174,6 +174,7 @@ class TestPerformanceImpact:
         mock_response.json = MagicMock(return_value={"status": "ok"})
 
         mock_client = AsyncMock()
+        mock_client.is_closed = False
         mock_client.post = AsyncMock(return_value=mock_response)
         mock_client.aclose = AsyncMock()
         transport._client = mock_client

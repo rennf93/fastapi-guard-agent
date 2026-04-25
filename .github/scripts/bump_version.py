@@ -92,9 +92,7 @@ def update_package_version_module(version: str) -> bool:
     pattern = re.compile(r'^(__version__\s*=\s*)"[^"]*"', re.MULTILINE)
     match = pattern.search(content)
     if not match:
-        print(
-            "  ERROR: Could not find __version__ in guard_agent/_version.py"
-        )
+        print("  ERROR: Could not find __version__ in guard_agent/_version.py")
         return False
     current = re.search(r'"([^"]*)"', match.group(0))
     if current and current.group(1) == version:

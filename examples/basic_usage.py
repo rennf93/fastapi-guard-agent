@@ -296,9 +296,3 @@ if __name__ == "__main__":
     # NOTE: This will try to connect to the demo endpoint which doesn't exist
     # In a real implementation, you would have a valid API key and endpoint
     asyncio.run(main())
-
-
-
-
-
-

@@ -326,6 +326,8 @@ class HTTPTransport(TransportProtocol):
 
         return None
 
+    _ENCRYPTED_ENDPOINTS = ("/api/v1/events", "/api/v1/metrics")
+
     async def _make_request(
         self, method: str, endpoint: str, data: dict[str, Any] | None
     ) -> dict[str, Any] | bool:
@@ -338,78 +340,85 @@ class HTTPTransport(TransportProtocol):
         url = f"{self.config.endpoint.rstrip('/')}{endpoint}"
 
         try:
-            if method == "POST" and data:
-                if self._encryption_enabled and endpoint in [
-                    "/api/v1/events",
-                    "/api/v1/metrics",
-                ]:
-                    if not self._encryptor:
-                        raise EncryptionError("Encryptor not initialized")
-
-                    payload_to_encrypt = {
-                        "events": [
-                            event.model_dump(mode="json")
-                            if hasattr(event, "model_dump")
-                            else event
-                            for event in data.get("events", [])
-                        ],
-                        "metrics": [
-                            metric.model_dump(mode="json")
-                            if hasattr(metric, "model_dump")
-                            else metric
-                            for metric in data.get("metrics", [])
-                        ],
-                    }
-
-                    encrypted_payload = self._encryptor.encrypt(payload_to_encrypt)
-
-                    encrypted_data = {
-                        "encrypted_payload": encrypted_payload,
-                        "batch_id": data.get("batch_id"),
-                        "agent_version": _AGENT_VERSION,
-                    }
-
-                    encrypted_url = (
-                        f"{self.config.endpoint.rstrip('/')}/api/v1/events/encrypted"
-                    )
-
-                    json_data = await safe_json_serialize(encrypted_data)
-                    body, headers = self._maybe_compress(json_data)
-                    self.bytes_sent += len(body)
-
-                    response = await self._client.post(
-                        encrypted_url, content=body, headers=headers
-                    )
-                    return await self._handle_response(response)
-                else:
-                    json_data = await safe_json_serialize(data)
-                    body, headers = self._maybe_compress(json_data)
-                    self.bytes_sent += len(body)
-
-                    response = await self._client.post(
-                        url, content=body, headers=headers
-                    )
-                    return await self._handle_response(response)
-
-            elif method == "GET":
-                response = await self._client.get(url)
-                return await self._handle_response(response)
-
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-
-        except EncryptionError as e:
-            self.logger.error(f"Encryption error for {method} {url}: {str(e)}")
-            raise
-        except httpx.HTTPError as e:
-            self.logger.error(f"HTTP client error for {method} {url}: {str(e)}")
-            raise
-        except asyncio.TimeoutError as e:
-            self.logger.error(f"Timeout error for {method} {url}: {str(e)}")
-            raise
+            return await self._dispatch_request(method, endpoint, url, data)
         except Exception as e:
-            self.logger.error(f"Unexpected error for {method} {url}: {str(e)}")
+            self._log_request_error(method, url, e)
             raise
+
+    async def _dispatch_request(
+        self,
+        method: str,
+        endpoint: str,
+        url: str,
+        data: dict[str, Any] | None,
+    ) -> dict[str, Any] | bool:
+        """Dispatch the HTTP call by method/endpoint without error handling."""
+        assert self._client is not None
+        if method == "POST" and data:
+            if self._encryption_enabled and endpoint in self._ENCRYPTED_ENDPOINTS:
+                return await self._post_encrypted(data)
+            return await self._post_unencrypted(url, data)
+        if method == "GET":
+            response = await self._client.get(url)
+            return await self._handle_response(response)
+        raise ValueError(f"Unsupported method: {method}")
+
+    def _log_request_error(self, method: str, url: str, exc: Exception) -> None:
+        """Classify and log a request-level exception."""
+        if isinstance(exc, EncryptionError):
+            label = "Encryption error"
+        elif isinstance(exc, httpx.HTTPError):
+            label = "HTTP client error"
+        elif isinstance(exc, asyncio.TimeoutError):
+            label = "Timeout error"
+        else:
+            label = "Unexpected error"
+        self.logger.error(f"{label} for {method} {url}: {str(exc)}")
+
+    def _build_encrypted_payload(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Serialize events/metrics for encryption."""
+        return {
+            "events": [
+                event.model_dump(mode="json") if hasattr(event, "model_dump") else event
+                for event in data.get("events", [])
+            ],
+            "metrics": [
+                metric.model_dump(mode="json")
+                if hasattr(metric, "model_dump")
+                else metric
+                for metric in data.get("metrics", [])
+            ],
+        }
+
+    async def _post_encrypted(self, data: dict[str, Any]) -> dict[str, Any] | bool:
+        """POST an encrypted payload to the dedicated encrypted endpoint."""
+        if not self._encryptor:
+            raise EncryptionError("Encryptor not initialized")
+        assert self._client is not None
+
+        encrypted_payload = self._encryptor.encrypt(self._build_encrypted_payload(data))
+        encrypted_data = {
+            "encrypted_payload": encrypted_payload,
+            "batch_id": data.get("batch_id"),
+            "agent_version": _AGENT_VERSION,
+        }
+        encrypted_url = f"{self.config.endpoint.rstrip('/')}/api/v1/events/encrypted"
+        json_data = await safe_json_serialize(encrypted_data)
+        body, headers = self._maybe_compress(json_data)
+        self.bytes_sent += len(body)
+        response = await self._client.post(encrypted_url, content=body, headers=headers)
+        return await self._handle_response(response)
+
+    async def _post_unencrypted(
+        self, url: str, data: dict[str, Any]
+    ) -> dict[str, Any] | bool:
+        """POST a plain JSON payload."""
+        assert self._client is not None
+        json_data = await safe_json_serialize(data)
+        body, headers = self._maybe_compress(json_data)
+        self.bytes_sent += len(body)
+        response = await self._client.post(url, content=body, headers=headers)
+        return await self._handle_response(response)
 
     async def _handle_response(self, response: httpx.Response) -> dict[str, Any] | bool:
         """Handle HTTP response with proper error checking."""

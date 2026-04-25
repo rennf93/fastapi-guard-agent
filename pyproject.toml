@@ -40,7 +40,9 @@ Changelog = "https://github.com/rennf93/guard-agent/blob/master/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
+    "bandit[toml]",
     "black",
+    "deptry",
     "django",
     "djapi-guard",
     "fastapi",
@@ -53,6 +55,7 @@ dev = [
     "mkdocstrings-python",
     "mkdocs-material",
     "mypy",
+    "pip-audit",
     "pre-commit",
     "psutil",
     "pymarkdownlnt",
@@ -60,12 +63,15 @@ dev = [
     "pytest-asyncio",
     "pytest-cov",
     "pytest-mock",
+    "radon",
     "ruff",
     "tornado",
     # tornadoapi-guard: not yet published on PyPI (only a yanked 0.0.1).
     # Re-enable here once the adapter ships a 1.0.0+ release to PyPI.
     "types-psutil",
     "types-setuptools",
+    "vulture",
+    "xenon",
 ]
 redis = [
     "redis",
@@ -101,6 +107,7 @@ allow-direct-references = true
 
 [tool.ruff]
 target-version = "py310"
+exclude = ["vulture_whitelist.py", ".venv"]
 
 [tool.ruff.lint]
 select = [
@@ -140,6 +147,7 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
+exclude = ["vulture_whitelist.py", ".venv"]
 
 [[tool.mypy.overrides]]
 module = "pydantic.*"
@@ -150,44 +158,133 @@ module = "httpx.*"
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "redis.*"
-follow_imports = "skip"
-
-[[tool.mypy.overrides]]
 module = "cryptography.*"
 follow_imports = "skip"
 
+[tool.pymarkdown.plugins.md003]
+enabled = false
+
+[tool.pymarkdown.plugins.md022]
+enabled = false
+
+[tool.pymarkdown.plugins.md032]
+enabled = false
+
 [tool.pymarkdown.plugins.md007]
-# MD007 - Unordered list indentation (set to 2 spaces)
 enabled = true
 indent = 2
 
 [tool.pymarkdown.plugins.md012]
-# MD012 - Multiple consecutive blank lines (allow up to 2)
 enabled = true
 maximum = 2
 
 [tool.pymarkdown.plugins.md013]
-# MD013 - Line length (disabled)
 enabled = false
 
 [tool.pymarkdown.plugins.md024]
-# MD024 - Multiple headings with same content (allow siblings only)
 enabled = true
 siblings_only = true
 
 [tool.pymarkdown.plugins.md033]
-# MD033 - Inline HTML
 enabled = false
 
 [tool.pymarkdown.plugins.md035]
-# MD035 - Horizontal rule style (disabled - allow any style)
 enabled = false
 
 [tool.pymarkdown.plugins.md041]
-# MD041 - First line in file should be top-level heading (disabled)
 enabled = false
 
 [tool.pymarkdown.plugins.md046]
-# MD046 - Code block style (disabled - allow any style)
 enabled = false
+
+[tool.pymarkdown.plugins.md029]
+enabled = false
+
+[tool.vulture]
+paths = ["guard_agent", "tests", "vulture_whitelist.py"]
+exclude = ["**/conftest.py", ".venv"]
+min_confidence = 100
+ignore_decorators = [
+    "@app.route",
+    "@app.get",
+    "@app.post",
+    "@app.put",
+    "@app.delete",
+    "@app.patch",
+    "@pytest.fixture",
+    "@pytest.mark.*",
+    "@validator",
+    "@root_validator",
+    "@field_validator",
+    "@model_validator",
+]
+ignore_names = [
+    "test_*",
+    "Test*",
+    "cleanup_*",
+    "mock_*",
+    "expected_*",
+    "exc_*",
+    "__*__",
+    "Config",
+    "Field",
+]
+sort_by_size = true
+
+[tool.bandit]
+skips = ["B101", "B601"]
+exclude_dirs = ["tests", ".venv", "vulture_whitelist.py"]
+severity = "medium"
+
+[tool.radon]
+exclude = "tests/*,.venv/*,vulture_whitelist.py"
+cc_min = "C"
+mi_min = "A"
+no_assert = false
+show_closures = true
+total_average = true
+
+[tool.xenon]
+max_absolute = "B"
+max_modules = "A"
+max_average = "A"
+exclude = ["tests/*", ".venv/*", "vulture_whitelist.py"]
+ignore = []
+
+[tool.deptry]
+exclude = ["tests", ".venv", "vulture_whitelist.py", "docs"]
+extend_exclude = ["conftest.py", "setup.py"]
+known_first_party = ["guard_agent"]
+per_rule_ignores = { "DEP002" = [
+    "bandit",
+    "black",
+    "deptry",
+    "django",
+    "djapi-guard",
+    "fastapi",
+    "fastapi-guard",
+    "flask",
+    "flaskapi-guard",
+    "mkdocs",
+    "mkdocstrings",
+    "mkdocstrings-python",
+    "mkdocs-material",
+    "mypy",
+    "pip-audit",
+    "pre-commit",
+    "psutil",
+    "pymarkdownlnt",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-mock",
+    "radon",
+    "redis",
+    "ruff",
+    "tornado",
+    "types-psutil",
+    "types-setuptools",
+    "typing-extensions",
+    "vulture",
+    "xenon",
+] }

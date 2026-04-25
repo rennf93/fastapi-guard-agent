@@ -20,3 +20,37 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+      - id: vulture
+        name: vulture
+        entry: uv run vulture vulture_whitelist.py
+        require_serial: true
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: bandit
+        name: bandit
+        entry: uv run bandit -r guard_agent -ll
+        require_serial: true
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: radon-cc
+        name: radon-cyclomatic-complexity
+        entry: uv run radon cc guard_agent -nc
+        require_serial: true
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: xenon
+        name: xenon
+        entry: uv run xenon guard_agent --max-absolute B --max-modules A --max-average A
+        require_serial: true
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: deptry
+        name: deptry
+        entry: uv run deptry .
+        require_serial: true
+        language: system
+        pass_filenames: false
