@@ -123,15 +123,17 @@ class TestSecurityEvent:
         assert event.action_taken == ""
 
     def test_event_with_extra_fields(self) -> None:
-        event = SecurityEvent.model_validate({
-            "timestamp": datetime.now(timezone.utc),
-            "event_type": "ip_banned",
-            "ip_address": "10.0.0.1",
-            "action_taken": "banned",
-            "reason": "test",
-            "custom_field": "custom_value",
-            "severity": 5,
-        })
+        event = SecurityEvent.model_validate(
+            {
+                "timestamp": datetime.now(timezone.utc),
+                "event_type": "ip_banned",
+                "ip_address": "10.0.0.1",
+                "action_taken": "banned",
+                "reason": "test",
+                "custom_field": "custom_value",
+                "severity": 5,
+            }
+        )
         extras = event.model_extra or {}
         assert extras["custom_field"] == "custom_value"
         assert extras["severity"] == 5
@@ -157,11 +159,13 @@ class TestSecurityMetric:
 
     def test_invalid_metric_type(self) -> None:
         with pytest.raises(ValidationError):
-            SecurityMetric.model_validate({
-                "timestamp": datetime.now(timezone.utc),
-                "metric_type": "invalid_metric",
-                "value": 1.0,
-            })
+            SecurityMetric.model_validate(
+                {
+                    "timestamp": datetime.now(timezone.utc),
+                    "metric_type": "invalid_metric",
+                    "value": 1.0,
+                }
+            )
 
 
 class TestDynamicRules:
