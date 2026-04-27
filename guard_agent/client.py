@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import os
+import threading
 import time
-from typing import Any
+from typing import Any, Literal
 
 from guard_agent.buffer import EventBuffer
 from guard_agent.models import (
@@ -21,18 +23,47 @@ from guard_agent.utils import (
 
 class GuardAgentHandler(AgentHandlerProtocol):
     """
-    Main agent handler following fastapi-guard handler patterns.
-    Implements singleton pattern with Redis integration and automatic flushing.
+    Async agent handler for ASGI frameworks (FastAPI, etc.).
+    All public methods are coroutines compatible with async guard-core adapters.
     """
 
     _instance: "GuardAgentHandler | None" = None
     _initialized: bool
+    _owner_pid: int
+    _fork_hook_registered: bool = False
 
     def __new__(cls, config: AgentConfig) -> "GuardAgentHandler":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
+            cls._instance._owner_pid = os.getpid()
+            cls._register_fork_hook()
+        elif cls._instance._owner_pid != os.getpid():
+            cls._instance._initialized = False
+            cls._instance._owner_pid = os.getpid()
+            cls._instance._flush_task = None
+            cls._instance._status_task = None
+            cls._instance._rules_task = None
         return cls._instance
+
+    @classmethod
+    def _register_fork_hook(cls) -> None:
+        if cls._fork_hook_registered:
+            return
+        register = getattr(os, "register_at_fork", None)
+        if register is not None:
+            register(after_in_child=cls._reset_after_fork)
+        cls._fork_hook_registered = True
+
+    @classmethod
+    def _reset_after_fork(cls) -> None:
+        if cls._instance is None:
+            return
+        cls._instance._initialized = False
+        cls._instance._owner_pid = os.getpid()
+        cls._instance._flush_task = None
+        cls._instance._status_task = None
+        cls._instance._rules_task = None
 
     def __init__(self, config: AgentConfig):
         if hasattr(self, "_initialized") and self._initialized:
@@ -46,7 +77,7 @@ class GuardAgentHandler(AgentHandlerProtocol):
         if config_errors:
             raise ValueError(f"Invalid agent configuration: {'; '.join(config_errors)}")
 
-        self.buffer = EventBuffer(config)
+        self.buffer = EventBuffer(config, flush_callback=self.flush_buffer)
         self.transport = HTTPTransport(config)
 
         self.redis_handler: RedisHandlerProtocol | None = None
@@ -70,13 +101,11 @@ class GuardAgentHandler(AgentHandlerProtocol):
         self.logger.info("Guard Agent Handler initialized")
 
     async def initialize_redis(self, redis_handler: RedisHandlerProtocol) -> None:
-        """Initialize Redis connection following fastapi-guard pattern."""
         self.redis_handler = redis_handler
         await self.buffer.initialize_redis(redis_handler)
         self.logger.info("Redis integration initialized")
 
     async def start(self) -> None:
-        """Start the agent with all background tasks."""
         if self._running:
             self.logger.warning("Agent is already running")
             return
@@ -100,7 +129,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
             raise
 
     async def stop(self) -> None:
-        """Stop the agent and cleanup resources."""
         self._running = False
 
         tasks = [self._flush_task, self._status_task, self._rules_task]
@@ -122,7 +150,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
         self.logger.info("Guard Agent stopped")
 
     async def send_event(self, event: Any) -> None:
-        """Send security event through buffer."""
         if not self.config.enable_events:
             return
 
@@ -137,7 +164,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
             self.logger.error(f"Failed to buffer event: {str(e)}")
 
     async def send_metric(self, metric: Any) -> None:
-        """Send metric through buffer."""
         if not self.config.enable_metrics:
             return
 
@@ -164,7 +190,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
         return SecurityMetric(**metric_data)
 
     async def get_dynamic_rules(self) -> DynamicRules | None:
-        """Get cached dynamic rules or fetch fresh ones."""
         current_time = time.time()
 
         if (
@@ -186,7 +211,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
             return self._cached_rules
 
     async def flush_buffer(self) -> None:
-        """Flush buffers; confirm Redis only after the transport acknowledges."""
         try:
             events, event_keys = await self.buffer.flush_events_with_keys()
             if events:
@@ -222,7 +246,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
             self.logger.error(f"Error during buffer flush: {str(e)}")
 
     async def get_status(self) -> AgentStatus:
-        """Get current agent status."""
         current_time = get_current_timestamp()
         uptime = time.time() - self._start_time
         buffer_size = await self.buffer.get_buffer_size()
@@ -230,8 +253,8 @@ class GuardAgentHandler(AgentHandlerProtocol):
         transport_stats = self.transport.get_stats()
         buffer_stats = self.buffer.get_stats()
 
-        status = "healthy"
-        errors = []
+        status: Literal["healthy", "degraded", "failed"] = "healthy"
+        errors: list[str] = []
 
         if transport_stats["circuit_breaker_state"] == "OPEN":
             status = "degraded"
@@ -265,11 +288,9 @@ class GuardAgentHandler(AgentHandlerProtocol):
         )
 
     async def close(self) -> None:
-        """Close agent and cleanup resources."""
         await self.stop()
 
     async def _flush_loop(self) -> None:
-        """Background flush loop."""
         while self._running:
             try:
                 await asyncio.sleep(self.config.flush_interval)
@@ -281,7 +302,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
                 self.logger.error(f"Error in flush loop: {str(e)}")
 
     async def _status_loop(self) -> None:
-        """Background status reporting loop."""
         while self._running:
             try:
                 await asyncio.sleep(300)
@@ -294,7 +314,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
                 self.logger.error(f"Error in status loop: {str(e)}")
 
     async def _rules_loop(self) -> None:
-        """Background dynamic rules fetching loop."""
         while self._running:
             try:
                 await asyncio.sleep(300)
@@ -306,7 +325,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
                 self.logger.error(f"Error in rules loop: {str(e)}")
 
     def get_stats(self) -> dict[str, Any]:
-        """Get comprehensive agent statistics."""
         return {
             "running": self._running,
             "uptime": time.time() - self._start_time,
@@ -322,12 +340,6 @@ class GuardAgentHandler(AgentHandlerProtocol):
         }
 
     async def health_check(self) -> bool:
-        """
-        Check if the agent is healthy and connected.
-
-        Returns:
-            True if agent is healthy, False otherwise
-        """
         if not self._running:
             return False
 
@@ -355,9 +367,82 @@ class GuardAgentHandler(AgentHandlerProtocol):
             return False
 
 
-def guard_agent(config: AgentConfig) -> GuardAgentHandler:
+class SyncGuardAgentHandler:
     """
-    Factory function for GuardAgentHandler singleton.
-    Follows the same pattern as other fastapi-guard handlers.
+    Sync wrapper around GuardAgentHandler for WSGI frameworks (Django, Flask).
+    Runs async logic in a dedicated background thread with its own event loop,
+    providing a fully synchronous interface compatible with guard-core's sync
+    CompositeAgentHandler.
     """
-    return GuardAgentHandler(config)
+
+    _instance: "SyncGuardAgentHandler | None" = None
+
+    def __new__(cls, config: AgentConfig) -> "SyncGuardAgentHandler":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self, config: AgentConfig) -> None:
+        if hasattr(self, "_loop"):
+            return
+        self._inner = GuardAgentHandler(config)
+        self._loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
+        self._thread = threading.Thread(
+            target=self._run_loop, args=(self._loop,), daemon=True
+        )
+        self._thread.start()
+        self.logger = logging.getLogger(__name__)
+
+    @staticmethod
+    def _run_loop(loop: asyncio.AbstractEventLoop) -> None:
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
+
+    def _run(self, coro: Any) -> Any:
+        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        return future.result()
+
+    def initialize_redis(self, redis_handler: RedisHandlerProtocol) -> None:
+        self._run(self._inner.initialize_redis(redis_handler))
+
+    def start(self) -> None:
+        self._run(self._inner.start())
+
+    def stop(self) -> None:
+        self._run(self._inner.stop())
+        self._loop.call_soon_threadsafe(self._loop.stop)
+        if self._thread.is_alive():
+            self._thread.join(timeout=5)
+
+    def send_event(self, event: Any) -> None:
+        self._run(self._inner.send_event(event))
+
+    def send_metric(self, metric: Any) -> None:
+        self._run(self._inner.send_metric(metric))
+
+    def flush_buffer(self) -> None:
+        self._run(self._inner.flush_buffer())
+
+    def get_dynamic_rules(self) -> DynamicRules | None:
+        result: DynamicRules | None = self._run(self._inner.get_dynamic_rules())
+        return result
+
+    def health_check(self) -> bool:
+        result: bool = self._run(self._inner.health_check())
+        return result
+
+    def get_stats(self) -> dict[str, Any]:
+        return self._inner.get_stats()
+
+
+def guard_agent(config: AgentConfig) -> GuardAgentHandler | SyncGuardAgentHandler:
+    """
+    Factory function for the agent handler.
+    Returns SyncGuardAgentHandler when called from a sync context (no running
+    event loop), and GuardAgentHandler when called from an async context.
+    """
+    try:
+        asyncio.get_running_loop()
+        return GuardAgentHandler(config)
+    except RuntimeError:
+        return SyncGuardAgentHandler(config)

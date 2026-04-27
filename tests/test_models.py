@@ -31,9 +31,8 @@ class TestAgentConfig:
         assert config.flush_interval == 30  # default
 
     def test_invalid_config_missing_api_key(self) -> None:
-        """Test that missing API key raises validation error."""
         with pytest.raises(ValidationError):
-            AgentConfig()
+            AgentConfig.model_validate({})
 
     def test_config_defaults(self) -> None:
         """Test that default values are set correctly."""
@@ -124,18 +123,18 @@ class TestSecurityEvent:
         assert event.action_taken == ""
 
     def test_event_with_extra_fields(self) -> None:
-        """Test that extra fields are allowed (parent passes **kwargs)."""
-        event = SecurityEvent(
-            timestamp=datetime.now(timezone.utc),
-            event_type="ip_banned",
-            ip_address="10.0.0.1",
-            action_taken="banned",
-            reason="test",
-            custom_field="custom_value",
-            severity=5,
-        )
-        assert event.custom_field == "custom_value"
-        assert event.severity == 5
+        event = SecurityEvent.model_validate({
+            "timestamp": datetime.now(timezone.utc),
+            "event_type": "ip_banned",
+            "ip_address": "10.0.0.1",
+            "action_taken": "banned",
+            "reason": "test",
+            "custom_field": "custom_value",
+            "severity": 5,
+        })
+        extras = event.model_extra or {}
+        assert extras["custom_field"] == "custom_value"
+        assert extras["severity"] == 5
 
 
 class TestSecurityMetric:
@@ -157,13 +156,12 @@ class TestSecurityMetric:
         assert metric.tags == {"endpoint": "/api/test"}
 
     def test_invalid_metric_type(self) -> None:
-        """Test that invalid metric type raises validation error."""
         with pytest.raises(ValidationError):
-            SecurityMetric(
-                timestamp=datetime.now(timezone.utc),
-                metric_type="invalid_metric",
-                value=1.0,
-            )
+            SecurityMetric.model_validate({
+                "timestamp": datetime.now(timezone.utc),
+                "metric_type": "invalid_metric",
+                "value": 1.0,
+            })
 
 
 class TestDynamicRules:

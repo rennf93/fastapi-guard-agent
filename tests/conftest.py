@@ -1,3 +1,28 @@
+import django
+from django.conf import settings
+
+if not settings.configured:
+    settings.configure(
+        DEBUG=False,
+        SECRET_KEY="test-secret-key-0123456789abcdef",
+        ALLOWED_HOSTS=["*"],
+        ROOT_URLCONF="tests.test_adapter_django",
+        DATABASES={
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": ":memory:",
+            }
+        },
+        INSTALLED_APPS=[
+            "django.contrib.contenttypes",
+            "django.contrib.auth",
+        ],
+        MIDDLEWARE=[
+            "djangoapi_guard.middleware.DjangoAPIGuard",
+        ],
+    )
+    django.setup()
+
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 

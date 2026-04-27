@@ -13,6 +13,10 @@ class EncryptionError(Exception):
     pass
 
 
+class EncryptionConfigError(RuntimeError):
+    """Raised when encryption initialization fails; plaintext fallback is forbidden."""
+
+
 def _default_json_handler(obj: Any) -> str:
     """Handle non-serializable objects during JSON encoding."""
     if isinstance(obj, datetime):
@@ -150,7 +154,8 @@ class PayloadEncryptor:
             aad = associated_data.encode() if associated_data else None
             decrypted = self._cipher.decrypt(nonce, ciphertext, aad)
 
-            return json.loads(decrypted.decode())  # type: ignore[no-any-return]
+            result: dict[str, Any] = json.loads(decrypted.decode())
+            return result
 
         except Exception as e:
             raise EncryptionError("Invalid or tampered payload") from e

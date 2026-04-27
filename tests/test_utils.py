@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -330,19 +329,21 @@ class TestUtils:
 
 
 class TestRateLimiter:
-    def test_acquire_within_limit(self) -> None:
+    @pytest.mark.asyncio
+    async def test_acquire_within_limit(self) -> None:
         limiter = RateLimiter(max_calls=3, time_window=10)
         with patch("time.time", side_effect=[0, 1, 2]):
-            assert asyncio.run(limiter.acquire()) is True
-            assert asyncio.run(limiter.acquire()) is True
-            assert asyncio.run(limiter.acquire()) is True
+            assert await limiter.acquire() is True
+            assert await limiter.acquire() is True
+            assert await limiter.acquire() is True
             assert len(limiter.calls) == 3
 
-    def test_acquire_exceed_limit(self) -> None:
+    @pytest.mark.asyncio
+    async def test_acquire_exceed_limit(self) -> None:
         limiter = RateLimiter(max_calls=1, time_window=10)
         with patch("time.time", side_effect=[0, 1]):
-            assert asyncio.run(limiter.acquire()) is True
-            assert asyncio.run(limiter.acquire()) is False  # Exceeds limit
+            assert await limiter.acquire() is True
+            assert await limiter.acquire() is False
 
     @pytest.mark.asyncio
     async def test_acquire_old_calls_removed(self) -> None:

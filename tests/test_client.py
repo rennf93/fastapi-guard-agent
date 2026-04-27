@@ -48,12 +48,14 @@ class TestGuardAgentHandler:
         assert handler1.config.buffer_size == 20
 
     def test_factory_function(self, agent_config: AgentConfig) -> None:
-        """Test the guard_agent factory function."""
+        """Test the guard_agent factory function returns a singleton."""
+        from guard_agent.client import SyncGuardAgentHandler
+
         handler1 = guard_agent(agent_config)
         handler2 = guard_agent(agent_config)
 
         assert handler1 is handler2
-        assert isinstance(handler1, GuardAgentHandler)
+        assert isinstance(handler1, (GuardAgentHandler, SyncGuardAgentHandler))
 
     @pytest.mark.asyncio
     async def test_initialize_redis(
@@ -189,10 +191,13 @@ class TestGuardAgentHandler:
         assert handler._status_task is not None
         assert handler._rules_task is not None
 
+        transport = handler.transport
+        buffer = handler.buffer
         await handler.stop()
-        assert handler._running is False
-        handler.transport.close.assert_called_once()  # type: ignore[unreachable]
-        handler.buffer.stop_auto_flush.assert_called_once()
+        running_after_stop: bool = handler._running
+        assert not running_after_stop
+        transport.close.assert_called_once()
+        buffer.stop_auto_flush.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_stop_calls_flush(self, agent_config: AgentConfig) -> None:

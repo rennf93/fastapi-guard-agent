@@ -1,5 +1,6 @@
 import asyncio
 import time
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -221,6 +222,13 @@ class TestBufferFlushIfNeeded:
     async def test_flush_if_needed_by_size(
         self, buffer: EventBuffer, security_event: SecurityEvent
     ) -> None:
+        called: list[int] = []
+
+        async def cb() -> None:
+            called.append(1)
+
+        buffer._flush_callback = cb
+        buffer._flush_semaphore = asyncio.Semaphore(1)
         buffer.config.buffer_size = 10
         for _ in range(8):
             await buffer.add_event(security_event)
@@ -229,10 +237,19 @@ class TestBufferFlushIfNeeded:
             await buffer._flush_if_needed()
             mock_debug.assert_called_with("Triggering buffer flush - size: 8")
 
+        assert called, "callback must be invoked when watermark is reached"
+
     @pytest.mark.asyncio
     async def test_flush_if_needed_by_time(
         self, buffer: EventBuffer, security_event: SecurityEvent
     ) -> None:
+        called: list[int] = []
+
+        async def cb() -> None:
+            called.append(1)
+
+        buffer._flush_callback = cb
+        buffer._flush_semaphore = asyncio.Semaphore(1)
         buffer.config.flush_interval = 1
         buffer.last_flush_time = time.time() - 2
         await buffer.add_event(security_event)
@@ -241,10 +258,19 @@ class TestBufferFlushIfNeeded:
             await buffer._flush_if_needed()
             mock_debug.assert_called_with("Triggering buffer flush - size: 1")
 
+        assert called, "callback must be invoked when flush interval elapsed"
+
     @pytest.mark.asyncio
     async def test_flush_if_needed_not_needed(
         self, buffer: EventBuffer, security_event: SecurityEvent
     ) -> None:
+        called: list[int] = []
+
+        async def cb() -> None:
+            called.append(1)
+
+        buffer._flush_callback = cb
+        buffer._flush_semaphore = asyncio.Semaphore(1)
         buffer.config.flush_interval = 10
         buffer.last_flush_time = time.time()
         await buffer.add_event(security_event)
@@ -252,6 +278,10 @@ class TestBufferFlushIfNeeded:
         with patch.object(buffer.logger, "debug") as mock_debug:
             await buffer._flush_if_needed()
             mock_debug.assert_not_called()
+
+        assert not called, (
+            "callback must not fire when below watermark and time not elapsed"
+        )
 
 
 # Test Redis persistence methods
@@ -914,3 +944,145 @@ class TestBufferConfirmAndRequeue:
         buffer.requeue_metrics_in_memory([security_metric], ["m_x"])
         assert buffer.metrics_dropped == before_dropped + 1
         assert len(buffer.metric_buffer) == 1
+
+
+class TestBufferMissingBranches:
+    @pytest.mark.asyncio
+    async def test_stop_auto_flush_when_task_already_done(
+        self, buffer: EventBuffer
+    ) -> None:
+        await buffer.start_auto_flush()
+        await buffer.stop_auto_flush()
+        await buffer.stop_auto_flush()
+        assert not buffer._running
+        assert buffer._flush_semaphore is None
+
+    @pytest.mark.asyncio
+    async def test_stop_auto_flush_awaits_inflight_tasks(
+        self, buffer: EventBuffer
+    ) -> None:
+        completed: list[int] = []
+
+        async def slow_flush() -> None:
+            await asyncio.sleep(0.05)
+            completed.append(1)
+
+        buffer._flush_semaphore = asyncio.Semaphore(1)
+        buffer._flush_callback = slow_flush
+        buffer._running = True
+        task: asyncio.Task[None] = asyncio.create_task(buffer._flush_if_needed())
+        buffer._inflight_flush_tasks.add(task)
+        task.add_done_callback(buffer._inflight_flush_tasks.discard)
+        buffer.last_flush_time = None
+        await buffer.add_event(
+            SecurityEvent(
+                timestamp=datetime.now(timezone.utc),
+                event_type="ip_blocked",
+                ip_address="1.2.3.4",
+            )
+        )
+        await buffer.stop_auto_flush()
+        assert not buffer._inflight_flush_tasks
+        assert buffer._flush_semaphore is None
+
+    @pytest.mark.asyncio
+    async def test_add_event_redis_persist_returns_none_skips_key_store(
+        self, buffer: EventBuffer, mock_redis_handler: AsyncMock
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        with patch.object(
+            buffer, "_persist_event_to_redis", new_callable=AsyncMock, return_value=None
+        ):
+            event = SecurityEvent(
+                timestamp=datetime.now(timezone.utc),
+                event_type="ip_blocked",
+                ip_address="1.2.3.4",
+            )
+            await buffer.add_event(event)
+        assert id(event) not in buffer._event_redis_keys
+
+    @pytest.mark.asyncio
+    async def test_add_metric_redis_persist_returns_none_skips_key_store(
+        self, buffer: EventBuffer, mock_redis_handler: AsyncMock
+    ) -> None:
+        await buffer.initialize_redis(mock_redis_handler)
+        with patch.object(
+            buffer,
+            "_persist_metric_to_redis",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            metric = SecurityMetric(
+                timestamp=datetime.now(timezone.utc),
+                metric_type="request_count",
+                value=1.0,
+            )
+            await buffer.add_metric(metric)
+        assert id(metric) not in buffer._metric_redis_keys
+
+    @pytest.mark.asyncio
+    async def test_requeue_events_with_empty_key_skips_redis_tracking(
+        self, buffer: EventBuffer, security_event: SecurityEvent
+    ) -> None:
+        buffer.requeue_events_in_memory([security_event], [""])
+        assert id(security_event) not in buffer._event_redis_keys
+
+    @pytest.mark.asyncio
+    async def test_requeue_metrics_with_empty_key_skips_redis_tracking(
+        self, buffer: EventBuffer, security_metric: SecurityMetric
+    ) -> None:
+        buffer.requeue_metrics_in_memory([security_metric], [""])
+        assert id(security_metric) not in buffer._metric_redis_keys
+
+    @pytest.mark.asyncio
+    async def test_auto_flush_loop_exits_normally_when_running_set_false(
+        self, buffer: EventBuffer
+    ) -> None:
+        buffer.config.flush_interval = 1
+        buffer._running = True
+        buffer._flush_semaphore = asyncio.Semaphore(1)
+
+        loop_task: asyncio.Task[None] = asyncio.create_task(buffer._auto_flush_loop())
+        await asyncio.sleep(0)
+        buffer._running = False
+        await asyncio.sleep(1.1)
+        assert loop_task.done()
+        assert not loop_task.cancelled()
+
+    @pytest.mark.asyncio
+    async def test_auto_flush_loop_skips_flush_when_running_false_after_sleep(
+        self, buffer: EventBuffer
+    ) -> None:
+        flushed: list[int] = []
+
+        async def fake_flush() -> None:
+            flushed.append(1)
+
+        buffer.config.flush_interval = 1
+        buffer._flush_callback = fake_flush
+        buffer._flush_semaphore = asyncio.Semaphore(1)
+        buffer._running = True
+
+        loop_task = asyncio.create_task(buffer._auto_flush_loop())
+        await asyncio.sleep(0.5)
+        buffer._running = False
+        await asyncio.sleep(0.7)
+        loop_task.cancel()
+        try:
+            await loop_task
+        except asyncio.CancelledError:
+            pass
+        assert not flushed
+
+    @pytest.mark.asyncio
+    async def test_clear_metrics_from_redis_all_keys_cleared_without_break(
+        self, buffer: EventBuffer, mock_redis_handler: AsyncMock
+    ) -> None:
+        mock_redis_handler.keys.side_effect = [
+            [],
+            [],
+            ["agent_metrics:metric_1", "agent_metrics:metric_2"],
+        ]
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer._clear_metrics_from_redis(10)
+        assert mock_redis_handler.delete.call_count == 2
