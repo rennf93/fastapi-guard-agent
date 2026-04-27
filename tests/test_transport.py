@@ -1,6 +1,7 @@
 import asyncio
+import os
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -886,7 +887,8 @@ class TestHTTPTransportEncryption:
 
     @pytest.mark.asyncio
     async def test_init_encryption_with_invalid_key(self) -> None:
-        """Test encryption initialization with invalid key."""
+        from guard_agent.encryption import EncryptionConfigError
+
         config = AgentConfig(
             api_key="test_key",
             endpoint="http://test.com",
@@ -894,17 +896,15 @@ class TestHTTPTransportEncryption:
             project_encryption_key="invalid_key",
         )
 
-        transport = HTTPTransport(config)
-
-        # Should fallback to unencrypted due to invalid key
-        assert transport._encryption_enabled is False
-        assert transport._encryptor is None
+        with pytest.raises(EncryptionConfigError):
+            HTTPTransport(config)
 
     @pytest.mark.asyncio
     async def test_init_encryption_with_verify_key_failure(self) -> None:
-        """Test encryption init when verify_key returns False."""
         import base64
         from unittest.mock import patch
+
+        from guard_agent.encryption import EncryptionConfigError
 
         valid_key = base64.urlsafe_b64encode(b"0" * 32).decode()
         config = AgentConfig(
@@ -917,19 +917,14 @@ class TestHTTPTransportEncryption:
         with patch(
             "guard_agent.encryption.PayloadEncryptor.verify_key", return_value=False
         ):
-            transport = HTTPTransport(config)
-
-            # Should fallback to unencrypted when verify_key fails
-            assert transport._encryption_enabled is False
-            # Encryptor is created but encryption is disabled
-            assert transport._encryptor is not None
+            with pytest.raises(EncryptionConfigError):
+                HTTPTransport(config)
 
     @pytest.mark.asyncio
     async def test_init_encryption_with_encryptor_creation_error(self) -> None:
-        """Test encryption init when encryptor creation raises error."""
         from unittest.mock import patch
 
-        from guard_agent.encryption import EncryptionError
+        from guard_agent.encryption import EncryptionConfigError, EncryptionError
 
         config = AgentConfig(
             api_key="test_key",
@@ -942,10 +937,8 @@ class TestHTTPTransportEncryption:
             "guard_agent.transport.create_encryptor",
             side_effect=EncryptionError("Test error"),
         ):
-            transport = HTTPTransport(config)
-
-            # Should fallback to unencrypted due to error
-            assert transport._encryption_enabled is False
+            with pytest.raises(EncryptionConfigError):
+                HTTPTransport(config)
 
     @pytest.mark.asyncio
     async def test_make_request_encrypted_events_endpoint(
@@ -1111,7 +1104,7 @@ class TestHTTPTransportForkSafety:
         self, agent_config: AgentConfig
     ) -> None:
         transport = HTTPTransport(agent_config)
-        transport._client = MagicMock()
+        transport._client = cast(Any, MagicMock())
         transport.requests_sent = 42
         transport.requests_failed = 7
         transport.bytes_sent = 9000
@@ -1121,7 +1114,7 @@ class TestHTTPTransportForkSafety:
         transport._reset_after_fork()
 
         assert transport._client is None
-        assert transport._pid == __import__("os").getpid()
+        assert transport._pid == os.getpid()
         assert transport.requests_sent == 0
         assert transport.requests_failed == 0
         assert transport.bytes_sent == 0
@@ -1140,7 +1133,7 @@ class TestHTTPTransportForkSafety:
         with patch.object(transport, "initialize", new_callable=AsyncMock) as mock_init:
             await transport._ensure_client_for_current_process()
             mock_init.assert_called_once()
-            assert transport._pid == __import__("os").getpid()
+            assert transport._pid == os.getpid()
 
     @pytest.mark.asyncio
     async def test_ensure_client_no_op_when_pid_matches_and_client_open(

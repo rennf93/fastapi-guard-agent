@@ -7,7 +7,12 @@ from typing import Any
 import httpx
 
 from guard_agent._version import __version__ as _AGENT_VERSION
-from guard_agent.encryption import EncryptionError, PayloadEncryptor, create_encryptor
+from guard_agent.encryption import (
+    EncryptionConfigError,
+    EncryptionError,
+    PayloadEncryptor,
+    create_encryptor,
+)
 from guard_agent.models import (
     AgentConfig,
     AgentStatus,
@@ -103,25 +108,23 @@ class HTTPTransport(TransportProtocol):
         return gzip.compress(raw), {"Content-Encoding": "gzip"}
 
     def _init_encryption(self) -> None:
-        """Initialize encryption if configured."""
         if not self.config.project_encryption_key:
-            self.logger.info("Encryption not configured - using unencrypted transport")
             return
 
         try:
             self._encryptor = create_encryptor(self.config.project_encryption_key)
-            if self._encryptor and self._encryptor.verify_key():
-                self._encryption_enabled = True
-                self.logger.info("Encryption enabled - using encrypted endpoint")
-            else:
-                self.logger.warning(
-                    "Invalid encryption key - falling back to unencrypted"
+            if not self._encryptor or not self._encryptor.verify_key():
+                raise EncryptionConfigError(
+                    "Encryption round-trip failed at startup;"
+                    " refusing plaintext fallback"
                 )
-        except EncryptionError as e:
-            self.logger.warning(
-                f"Encryption setup failed: {e} - using unencrypted transport"
-            )
-            self._encryption_enabled = False
+            self._encryption_enabled = True
+        except EncryptionConfigError:
+            raise
+        except Exception as exc:
+            raise EncryptionConfigError(
+                "Encryption round-trip failed at startup; refusing plaintext fallback"
+            ) from exc
 
     async def initialize(self) -> None:
         """Initialize HTTP client."""

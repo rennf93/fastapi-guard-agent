@@ -1,6 +1,6 @@
 [project]
 name = "guard-agent"
-version = "2.2.0"
+version = "2.3.0"
 description = "Framework-agnostic telemetry and monitoring agent for the Guard security ecosystem (fastapi-guard, flaskapi-guard, djangoapi-guard, tornadoapi-guard)"
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
@@ -68,6 +68,7 @@ dev = [
     "tornado",
     # tornadoapi-guard: not yet published on PyPI (only a yanked 0.0.1).
     # Re-enable here once the adapter ships a 1.0.0+ release to PyPI.
+    "django-stubs",
     "types-psutil",
     "types-setuptools",
     "vulture",
@@ -148,10 +149,6 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 exclude = ["vulture_whitelist.py", ".venv"]
-
-[[tool.mypy.overrides]]
-module = "pydantic.*"
-follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "httpx.*"
@@ -282,6 +279,7 @@ per_rule_ignores = { "DEP002" = [
     "redis",
     "ruff",
     "tornado",
+    "django-stubs",
     "types-psutil",
     "types-setuptools",
     "typing-extensions",

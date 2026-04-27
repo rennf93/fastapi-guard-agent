@@ -3,6 +3,7 @@ import logging
 import time
 import uuid
 from collections import deque
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric
@@ -14,24 +15,26 @@ from guard_agent.utils import (
 
 
 class EventBuffer(BufferProtocol):
-    """
-    Event buffer with Redis persistence and automatic flushing.
-    Follows fastapi-guard handler patterns.
-    """
-
     _DROP_LOG_INTERVAL = 100
 
-    def __init__(self, config: AgentConfig):
+    def __init__(
+        self,
+        config: AgentConfig,
+        flush_callback: Callable[[], Awaitable[None]] | None = None,
+    ):
         self.config = config
         self.logger = logging.getLogger(__name__)
+        self._flush_callback = flush_callback
 
         self.event_buffer: deque[SecurityEvent] = deque(maxlen=config.buffer_size)
         self.metric_buffer: deque[SecurityMetric] = deque(maxlen=config.buffer_size)
 
         self.redis_handler: RedisHandlerProtocol | None = None
 
-        self._flush_task: asyncio.Task | None = None
+        self._flush_task: asyncio.Task[None] | None = None
+        self._flush_semaphore: asyncio.Semaphore | None = None
         self._running = False
+        self._inflight_flush_tasks: set[asyncio.Task[None]] = set()
 
         self._event_redis_keys: dict[int, str] = {}
         self._metric_redis_keys: dict[int, str] = {}
@@ -45,20 +48,21 @@ class EventBuffer(BufferProtocol):
         self.last_flush_time: float | None = None
 
     async def initialize_redis(self, redis_handler: RedisHandlerProtocol) -> None:
-        """Initialize Redis connection for persistent buffering."""
         self.redis_handler = redis_handler
         await self._load_from_redis()
 
     async def start_auto_flush(self) -> None:
-        """Start automatic buffer flushing."""
         if self._flush_task and not self._flush_task.done():
             return
 
+        self._flush_semaphore = asyncio.Semaphore(self.config.max_concurrent_flushes)
         self._running = True
         self._flush_task = asyncio.create_task(self._auto_flush_loop())
 
+    async def start(self) -> None:
+        await self.start_auto_flush()
+
     async def stop_auto_flush(self) -> None:
-        """Stop automatic buffer flushing."""
         self._running = False
         if self._flush_task and not self._flush_task.done():
             self._flush_task.cancel()
@@ -66,6 +70,13 @@ class EventBuffer(BufferProtocol):
                 await self._flush_task
             except asyncio.CancelledError:
                 pass
+        if self._inflight_flush_tasks:
+            await asyncio.gather(*self._inflight_flush_tasks, return_exceptions=True)
+        self._inflight_flush_tasks.clear()
+        self._flush_semaphore = None
+
+    async def stop(self) -> None:
+        await self.stop_auto_flush()
 
     async def add_event(self, event: SecurityEvent) -> None:
         """Add security event to buffer; track silent overflow drops."""
@@ -87,8 +98,13 @@ class EventBuffer(BufferProtocol):
                 if key is not None:
                     self._event_redis_keys[id(event)] = key
 
-            if len(self.event_buffer) >= self.config.buffer_size:
-                asyncio.create_task(self._flush_if_needed())
+            if (
+                len(self.event_buffer)
+                >= self.config.buffer_size * self.config.high_watermark_ratio
+            ):
+                task: asyncio.Task[None] = asyncio.create_task(self._flush_if_needed())
+                self._inflight_flush_tasks.add(task)
+                task.add_done_callback(self._inflight_flush_tasks.discard)
 
         except Exception as e:
             self.logger.error(f"Failed to buffer event: {str(e)}")
@@ -113,8 +129,13 @@ class EventBuffer(BufferProtocol):
                 if key is not None:
                     self._metric_redis_keys[id(metric)] = key
 
-            if len(self.metric_buffer) >= self.config.buffer_size:
-                asyncio.create_task(self._flush_if_needed())
+            if (
+                len(self.metric_buffer)
+                >= self.config.buffer_size * self.config.high_watermark_ratio
+            ):
+                task = asyncio.create_task(self._flush_if_needed())
+                self._inflight_flush_tasks.add(task)
+                task.add_done_callback(self._inflight_flush_tasks.discard)
 
         except Exception as e:
             self.logger.error(f"Failed to buffer metric: {str(e)}")
@@ -248,7 +269,6 @@ class EventBuffer(BufferProtocol):
                 self.logger.error(f"Error in auto flush loop: {str(e)}")
 
     async def _flush_if_needed(self) -> None:
-        """Check if flush is needed and perform it."""
         current_time = time.time()
 
         time_since_last_flush = (
@@ -258,15 +278,23 @@ class EventBuffer(BufferProtocol):
         )
 
         buffer_size = await self.get_buffer_size()
-        should_flush = (
-            buffer_size >= self.config.buffer_size * 0.8
-            or time_since_last_flush >= self.config.flush_interval
+        at_watermark = (
+            buffer_size >= self.config.buffer_size * self.config.high_watermark_ratio
         )
+        time_elapsed = time_since_last_flush >= self.config.flush_interval
 
-        if should_flush and buffer_size > 0:
-            self.logger.debug(f"Triggering buffer flush - size: {buffer_size}")
-            # NOTE: This method doesn't actually send data, just marks it ready.
-            # The actual sending is handled by the transport layer.
+        if not (at_watermark or time_elapsed) or buffer_size == 0:
+            return
+
+        if self._flush_callback is None or self._flush_semaphore is None:
+            return
+
+        if self._flush_semaphore.locked():
+            return
+
+        self.logger.debug(f"Triggering buffer flush - size: {buffer_size}")
+        async with self._flush_semaphore:
+            await self._flush_callback()
 
     async def _persist_event_to_redis(self, event: SecurityEvent) -> str | None:
         """Persist event to Redis under a globally-unique key; return that key."""

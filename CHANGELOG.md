@@ -3,6 +3,24 @@ Release Notes
 
 ___
 
+v2.3.0 (2026-04-26)
+-------------------
+
+Production Safety (v2.3.0)
+--------------------------
+- **Fork-safe `GuardAgentHandler` singleton.** Class-level `_instance` survived `os.fork()`, so Gunicorn pre-fork workers all inherited a stale `_initialized=True` flag and dead asyncio task handles from the parent loop. Calling `start()` in the child was a silent no-op and the child never connected to the agent endpoint. Register an `os.register_at_fork(after_in_child=...)` hook that resets `_initialized` and clears inherited task references. Add a per-call PID guard for non-fork-aware multiprocessing setups. Companion fix to the transport-level fork-safety shipped in 2.2.0.
+- **Real watermark-driven early flush.** `EventBuffer._flush_if_needed` was previously a no-op marker — bursts that filled the buffer continued dropping events for the entire flush_interval window even though the early-flush task was scheduled. Trigger a real async flush when buffer occupancy exceeds the high-watermark ratio (default 80%). Cap concurrent flushes via an `asyncio.Semaphore` (default 1) to prevent runaway parallel sends under sustained pressure. New `AgentConfig` fields: `high_watermark_ratio: float = 0.8`, `max_concurrent_flushes: int = 1`. `EventBuffer.stop_auto_flush()` now awaits in-flight watermark-triggered flushes before returning, eliminating data loss on shutdown.
+- **Hard-fail on encryption init.** When the `project_encryption_key` round-trip failed at startup, transport logged a warning and proceeded with plaintext over the wire. Operators got no signal stronger than a log line and could ship traffic encrypted in the dashboard's mind but not on the network. Now raises `EncryptionConfigError` on any startup encryption failure. No plaintext fallback. Operators get a loud failure they can react to.
+
+Internal (v2.3.0)
+-----------------
+- Test coverage maintained at **100%** line + branch across `guard_agent/buffer.py`, `client.py`, `encryption.py`, `models.py`, `protocols.py`, `transport.py`, `utils.py` (1135 statements, 0 missed).
+- Added test coverage to verify `EventBatch.batch_id` is stable across retries (the underlying behavior was already correct in 2.2.0 — the new tests pin it down so future refactors can't regress).
+- Performance tests (`test_agent_performance_impact`, `test_memory_usage`) hardened against coverage-instrumentation noise: `gc.collect()` before RSS baseline, coverage-aware overhead threshold, `enable_redis=False` in test apps to eliminate ResourceWarning pollution.
+- Fixed pre-existing typing gaps in test mocks; all resolved at the root without any suppression directives.
+
+___
+
 v2.2.0 (2026-04-25)
 -------------------
 

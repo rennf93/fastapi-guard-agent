@@ -9,7 +9,7 @@ management platform.
 
 from guard_agent._version import __version__
 from guard_agent.buffer import EventBuffer
-from guard_agent.client import GuardAgentHandler, guard_agent
+from guard_agent.client import GuardAgentHandler, SyncGuardAgentHandler, guard_agent
 from guard_agent.models import (
     AgentConfig,
     AgentStatus,
@@ -40,6 +40,7 @@ from guard_agent.utils import (
 __all__ = [
     "guard_agent",
     "GuardAgentHandler",
+    "SyncGuardAgentHandler",
     "AgentConfig",
     "SecurityEvent",
     "SecurityMetric",

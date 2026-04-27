@@ -59,6 +59,12 @@ class AgentConfig(BaseModel):
     flush_interval: int = Field(
         default=30, description="Buffer flush interval in seconds"
     )
+    high_watermark_ratio: float = Field(
+        default=0.8, description="Buffer occupancy ratio that triggers early flush"
+    )
+    max_concurrent_flushes: int = Field(
+        default=1, description="Maximum concurrent early-flush operations"
+    )
 
     enable_metrics: bool = Field(default=True, description="Send performance metrics")
     enable_events: bool = Field(default=True, description="Send security events")
@@ -93,7 +99,7 @@ class AgentConfig(BaseModel):
         description="Minimum body size in bytes before gzip compression applies",
     )
 
-    @field_validator("endpoint")  # type: ignore
+    @field_validator("endpoint")
     @classmethod
     def validate_endpoint(cls, v: str) -> str:
         """Validate that endpoint is a valid URL."""
