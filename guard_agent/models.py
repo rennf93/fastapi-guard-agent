@@ -66,6 +66,15 @@ class AgentConfig(BaseModel):
     max_concurrent_flushes: int = Field(
         default=1, description="Maximum concurrent early-flush operations"
     )
+    buffer_overflow_policy: Literal["drop", "block", "raise"] = Field(
+        default="drop",
+        description=(
+            "Behavior when the in-memory buffer is full. "
+            "'drop' (default) silently evicts the oldest entry. "
+            "'block' awaits free space, backpressuring the caller. "
+            "'raise' throws BufferFullError so callers can react."
+        ),
+    )
 
     enable_metrics: bool = Field(default=True, description="Send performance metrics")
     enable_events: bool = Field(default=True, description="Send security events")
