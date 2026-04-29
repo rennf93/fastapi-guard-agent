@@ -3,6 +3,29 @@ Release Notes
 
 ___
 
+v2.4.0 (2026-04-29)
+-------------------
+
+Per-event idempotency keys and configurable overflow policy (v2.4.0)
+--------------------------------------------------------------------
+
+### Added
+
+- **`SecurityEvent.idempotency_key: UUID`** — every emitted event now carries a stable per-event identifier (default `uuid4()` via `default_factory`). Combined with the existing batch-stable `batch_id`, this lets the SaaS dedup at the event level when an ACK is lost mid-batch and the batch is retried. The field is named `idempotency_key`, not `event_id`, to avoid collision with the SaaS API's existing `event_id` (the prefixed external id, e.g. `evt_abc123`). Backward-compatible: callers that don't set the field automatically get a generated one.
+- **`encryption._default_json_handler`** now serializes `UUID` values to their string form alongside the existing `datetime` → `isoformat()` branch. Required for the encrypted-payload path to handle events carrying the new `idempotency_key`.
+- **`AgentConfig.buffer_overflow_policy: Literal["drop", "block", "raise"] = "drop"`** — operators can now choose how the in-memory event/metric buffer behaves at capacity:
+  - `drop` (default) — silent eviction of the oldest entry; preserves prior behavior verbatim. Production-safe for high-throughput; loses events when the SaaS is unreachable.
+  - `block` — backpressures the caller until a flush frees space. Appropriate when event integrity is critical. Use only when `start_auto_flush` is wired or a flush callback is in place; otherwise `clear_buffer` is the manual escape hatch.
+  - `raise` — `BufferFullError` propagates to the caller. Appropriate for tests or strict environments where dropping events is unacceptable.
+- **`BufferFullError(GuardAgentError)`** exception class added in `guard_agent.exceptions` and re-exported from the top-level `guard_agent` module.
+
+### Compatibility
+
+- Default behavior unchanged for callers that don't opt into either feature: `idempotency_key` has a `default_factory`, and `buffer_overflow_policy` defaults to `"drop"` (which preserves prior eviction semantics including the silent-overflow counter and warning-every-100th log).
+- SaaS-side coordination: this release is paired with the SaaS dedup work that ships the `idempotency_key` column on `security_events`, the unique constraint, and the `pg_insert ... on_conflict_do_nothing` ingest path. SaaS deployments that don't yet recognize the field treat it as an unknown column and silently drop the bytes — no behavior change to those callers.
+
+___
+
 v2.2.0 (2026-04-25)
 -------------------
 
