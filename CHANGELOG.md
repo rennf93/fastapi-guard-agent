@@ -21,6 +21,10 @@ Per-event idempotency keys, configurable overflow policy, and framework-version 
   - `raise` — `BufferFullError` propagates to the caller. Appropriate for tests or strict environments where dropping events is unacceptable.
 - **`BufferFullError(GuardAgentError)`** exception class added in `guard_agent.exceptions` and re-exported from the top-level `guard_agent` module.
 
+### Fixed
+
+- **`HTTPTransport._make_request` was logging the wrong URL on POST failures.** When encryption was enabled, the actual request hit `/api/v1/events/encrypted` but the error log printed the unencrypted endpoint string (`url = f"{endpoint}{plain_path}"`). Operators chasing down 503s and decrypt errors saw `POST .../api/v1/events` in their logs even though the wire request went to `/api/v1/events/encrypted`. Fix: compute the actual posted URL (encrypted vs plain) up-front and pass that to `_log_request_error`. No behavior change beyond log accuracy.
+
 ### Compatibility
 
 - Default behavior unchanged for callers that don't opt into either feature: `idempotency_key` has a `default_factory`, and `buffer_overflow_policy` defaults to `"drop"` (which preserves prior eviction semantics including the silent-overflow counter and warning-every-100th log).
