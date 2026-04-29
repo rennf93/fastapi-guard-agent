@@ -1086,3 +1086,27 @@ class TestBufferMissingBranches:
         await buffer.initialize_redis(mock_redis_handler)
         await buffer._clear_metrics_from_redis(10)
         assert mock_redis_handler.delete.call_count == 2
+
+
+class TestBufferIdempotencyKey:
+    """Tests verifying SecurityEvent.idempotency_key survives the buffer lifecycle."""
+
+    @pytest.mark.asyncio
+    async def test_buffer_preserves_idempotency_key_through_add_and_flush(
+        self, buffer: EventBuffer
+    ) -> None:
+        from uuid import UUID
+
+        explicit_key = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="10.0.0.2",
+            idempotency_key=explicit_key,
+        )
+
+        await buffer.add_event(event)
+        flushed = await buffer.flush_events()
+
+        assert len(flushed) == 1
+        assert flushed[0].idempotency_key == explicit_key
