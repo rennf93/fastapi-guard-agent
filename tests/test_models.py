@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
@@ -137,6 +138,47 @@ class TestSecurityEvent:
         extras = event.model_extra or {}
         assert extras["custom_field"] == "custom_value"
         assert extras["severity"] == 5
+
+    def test_security_event_auto_generates_idempotency_key(self) -> None:
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="suspicious_request",
+        )
+        assert event.idempotency_key is not None
+        assert isinstance(event.idempotency_key, UUID)
+        assert len(str(event.idempotency_key)) == 36
+
+    def test_security_event_idempotency_key_is_unique_per_instance(self) -> None:
+        first = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="suspicious_request",
+        )
+        second = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="suspicious_request",
+        )
+        assert first.idempotency_key != second.idempotency_key
+
+    def test_security_event_idempotency_key_round_trips_through_serialization(
+        self,
+    ) -> None:
+        original = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="10.0.0.1",
+        )
+        dumped = original.model_dump()
+        rehydrated = SecurityEvent.model_validate(dumped)
+        assert rehydrated.idempotency_key == original.idempotency_key
+
+    def test_security_event_accepts_explicit_idempotency_key(self) -> None:
+        explicit = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            idempotency_key=explicit,
+        )
+        assert event.idempotency_key == explicit
 
 
 class TestSecurityMetric:

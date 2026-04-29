@@ -10,6 +10,7 @@ management platform.
 from guard_agent._version import __version__
 from guard_agent.buffer import EventBuffer
 from guard_agent.client import GuardAgentHandler, SyncGuardAgentHandler, guard_agent
+from guard_agent.exceptions import BufferFullError, GuardAgentError
 from guard_agent.models import (
     AgentConfig,
     AgentStatus,
@@ -48,6 +49,8 @@ __all__ = [
     "AgentStatus",
     "EventBatch",
     "EventBuffer",
+    "BufferFullError",
+    "GuardAgentError",
     "HTTPTransport",
     "AgentHandlerProtocol",
     "TransportProtocol",

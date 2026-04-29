@@ -6,6 +6,7 @@ from collections import deque
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from guard_agent.exceptions import BufferFullError
 from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric
 from guard_agent.protocols import BufferProtocol, RedisHandlerProtocol
 from guard_agent.utils import (
@@ -38,6 +39,9 @@ class EventBuffer(BufferProtocol):
 
         self._event_redis_keys: dict[int, str] = {}
         self._metric_redis_keys: dict[int, str] = {}
+
+        self._event_space_available: asyncio.Event | None = None
+        self._metric_space_available: asyncio.Event | None = None
 
         self.events_buffered = 0
         self.metrics_buffered = 0
@@ -79,17 +83,9 @@ class EventBuffer(BufferProtocol):
         await self.stop_auto_flush()
 
     async def add_event(self, event: SecurityEvent) -> None:
-        """Add security event to buffer; track silent overflow drops."""
+        """Add security event to buffer honoring the configured overflow policy."""
+        await self._apply_event_overflow_policy()
         try:
-            if self._is_event_buffer_full():
-                self.events_dropped += 1
-                if self.events_dropped % self._DROP_LOG_INTERVAL == 1:
-                    self.logger.warning(
-                        f"Event buffer full at maxlen={self.config.buffer_size}; "
-                        f"dropping oldest event ({self.events_dropped} dropped total)"
-                    )
-                self._forget_oldest_event_key()
-
             self.event_buffer.append(event)
             self.events_buffered += 1
 
@@ -110,17 +106,9 @@ class EventBuffer(BufferProtocol):
             self.logger.error(f"Failed to buffer event: {str(e)}")
 
     async def add_metric(self, metric: SecurityMetric) -> None:
-        """Add metric to buffer; track silent overflow drops."""
+        """Add metric to buffer honoring the configured overflow policy."""
+        await self._apply_metric_overflow_policy()
         try:
-            if self._is_metric_buffer_full():
-                self.metrics_dropped += 1
-                if self.metrics_dropped % self._DROP_LOG_INTERVAL == 1:
-                    self.logger.warning(
-                        f"Metric buffer full at maxlen={self.config.buffer_size}; "
-                        f"dropping oldest metric ({self.metrics_dropped} dropped total)"
-                    )
-                self._forget_oldest_metric_key()
-
             self.metric_buffer.append(metric)
             self.metrics_buffered += 1
 
@@ -139,6 +127,76 @@ class EventBuffer(BufferProtocol):
 
         except Exception as e:
             self.logger.error(f"Failed to buffer metric: {str(e)}")
+
+    async def _apply_event_overflow_policy(self) -> None:
+        if not self._is_event_buffer_full():
+            return
+        policy = self.config.buffer_overflow_policy
+        if policy == "raise":
+            raise BufferFullError(
+                f"Event buffer full at maxlen={self.config.buffer_size} "
+                "and buffer_overflow_policy='raise'"
+            )
+        if policy == "block":
+            await self._await_event_space()
+            return
+        self.events_dropped += 1
+        if self.events_dropped % self._DROP_LOG_INTERVAL == 1:
+            self.logger.warning(
+                f"Event buffer full at maxlen={self.config.buffer_size}; "
+                f"dropping oldest event ({self.events_dropped} dropped total)"
+            )
+        self._forget_oldest_event_key()
+
+    async def _apply_metric_overflow_policy(self) -> None:
+        if not self._is_metric_buffer_full():
+            return
+        policy = self.config.buffer_overflow_policy
+        if policy == "raise":
+            raise BufferFullError(
+                f"Metric buffer full at maxlen={self.config.buffer_size} "
+                "and buffer_overflow_policy='raise'"
+            )
+        if policy == "block":
+            await self._await_metric_space()
+            return
+        self.metrics_dropped += 1
+        if self.metrics_dropped % self._DROP_LOG_INTERVAL == 1:
+            self.logger.warning(
+                f"Metric buffer full at maxlen={self.config.buffer_size}; "
+                f"dropping oldest metric ({self.metrics_dropped} dropped total)"
+            )
+        self._forget_oldest_metric_key()
+
+    def _get_event_space_event(self) -> asyncio.Event:
+        if self._event_space_available is None:
+            self._event_space_available = asyncio.Event()
+        return self._event_space_available
+
+    def _get_metric_space_event(self) -> asyncio.Event:
+        if self._metric_space_available is None:
+            self._metric_space_available = asyncio.Event()
+        return self._metric_space_available
+
+    async def _await_event_space(self) -> None:
+        space_event = self._get_event_space_event()
+        while self._is_event_buffer_full():
+            space_event.clear()
+            await space_event.wait()
+
+    async def _await_metric_space(self) -> None:
+        space_event = self._get_metric_space_event()
+        while self._is_metric_buffer_full():
+            space_event.clear()
+            await space_event.wait()
+
+    def _signal_event_space_available(self) -> None:
+        if self._event_space_available is not None:
+            self._event_space_available.set()
+
+    def _signal_metric_space_available(self) -> None:
+        if self._metric_space_available is not None:
+            self._metric_space_available.set()
 
     def _forget_oldest_event_key(self) -> None:
         if not self.event_buffer:
@@ -186,6 +244,8 @@ class EventBuffer(BufferProtocol):
         self.event_buffer.clear()
         self.events_flushed += len(events)
         self.last_flush_time = time.time()
+        if events:
+            self._signal_event_space_available()
         return events, keys
 
     async def flush_metrics_with_keys(
@@ -198,6 +258,8 @@ class EventBuffer(BufferProtocol):
         self.metric_buffer.clear()
         self.metrics_flushed += len(metrics)
         self.last_flush_time = time.time()
+        if metrics:
+            self._signal_metric_space_available()
         return metrics, keys
 
     async def confirm_event_redis_keys(self, keys: list[str]) -> None:
@@ -252,6 +314,8 @@ class EventBuffer(BufferProtocol):
         """Clear all buffers."""
         self.event_buffer.clear()
         self.metric_buffer.clear()
+        self._signal_event_space_available()
+        self._signal_metric_space_available()
 
         if self.redis_handler:
             await self._clear_redis_buffers()

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Literal
 from urllib.parse import urlparse
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -65,6 +66,15 @@ class AgentConfig(BaseModel):
     max_concurrent_flushes: int = Field(
         default=1, description="Maximum concurrent early-flush operations"
     )
+    buffer_overflow_policy: Literal["drop", "block", "raise"] = Field(
+        default="drop",
+        description=(
+            "Behavior when the in-memory buffer is full. "
+            "'drop' (default) silently evicts the oldest entry. "
+            "'block' awaits free space, backpressuring the caller. "
+            "'raise' throws BufferFullError so callers can react."
+        ),
+    )
 
     enable_metrics: bool = Field(default=True, description="Send performance metrics")
     enable_events: bool = Field(default=True, description="Send security events")
@@ -84,6 +94,16 @@ class AgentConfig(BaseModel):
     project_encryption_key: str | None = Field(
         default=None,
         description="Project-specific encryption key for secure telemetry transmission",
+    )
+
+    guard_version: str | None = Field(
+        default=None,
+        description=(
+            "Version of the framework integration that wraps this agent "
+            "(e.g. fastapi-guard middleware version). The framework adapter "
+            "sets this at agent init time so the SaaS can attribute telemetry "
+            "to the wrapper version rather than just the agent version."
+        ),
     )
 
     compression_enabled: bool = Field(
@@ -121,6 +141,7 @@ class SecurityEvent(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+    idempotency_key: UUID = Field(default_factory=uuid4)
     timestamp: datetime
     event_type: str
     ip_address: str = ""
@@ -248,3 +269,6 @@ class EventBatch(BaseModel):
     created_at: datetime
     compressed: bool = Field(default=False)
     agent_version: str | None = Field(default=None, description="Agent version string")
+    guard_version: str | None = Field(
+        default=None, description="Framework integration version (e.g. fastapi-guard)"
+    )

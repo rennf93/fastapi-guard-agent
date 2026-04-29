@@ -179,6 +179,7 @@ class HTTPTransport(TransportProtocol):
                 batch_id=generate_batch_id(),
                 created_at=get_current_timestamp(),
                 agent_version=_AGENT_VERSION,
+                guard_version=self.config.guard_version,
             )
 
             return await self._send_with_retry(
@@ -202,6 +203,7 @@ class HTTPTransport(TransportProtocol):
                 batch_id=generate_batch_id(),
                 created_at=get_current_timestamp(),
                 agent_version=_AGENT_VERSION,
+                guard_version=self.config.guard_version,
             )
 
             return await self._send_with_retry(
@@ -340,12 +342,22 @@ class HTTPTransport(TransportProtocol):
         if not self._client:
             raise Exception("Failed to initialize HTTP client")
 
-        url = f"{self.config.endpoint.rstrip('/')}{endpoint}"
+        endpoint_base = self.config.endpoint.rstrip("/")
+        url = f"{endpoint_base}{endpoint}"
+        if (
+            method == "POST"
+            and data
+            and self._encryption_enabled
+            and endpoint in self._ENCRYPTED_ENDPOINTS
+        ):
+            actual_url = f"{endpoint_base}/api/v1/events/encrypted"
+        else:
+            actual_url = url
 
         try:
             return await self._dispatch_request(method, endpoint, url, data)
         except Exception as e:
-            self._log_request_error(method, url, e)
+            self._log_request_error(method, actual_url, e)
             raise
 
     async def _dispatch_request(
@@ -404,6 +416,7 @@ class HTTPTransport(TransportProtocol):
             "encrypted_payload": encrypted_payload,
             "batch_id": data.get("batch_id"),
             "agent_version": _AGENT_VERSION,
+            "guard_version": self.config.guard_version,
         }
         encrypted_url = f"{self.config.endpoint.rstrip('/')}/api/v1/events/encrypted"
         json_data = await safe_json_serialize(encrypted_data)

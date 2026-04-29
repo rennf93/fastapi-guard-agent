@@ -7,6 +7,7 @@ import pytest
 from pytest import LogCaptureFixture
 
 from guard_agent.buffer import EventBuffer
+from guard_agent.exceptions import BufferFullError, GuardAgentError
 from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric
 
 
@@ -1086,3 +1087,257 @@ class TestBufferMissingBranches:
         await buffer.initialize_redis(mock_redis_handler)
         await buffer._clear_metrics_from_redis(10)
         assert mock_redis_handler.delete.call_count == 2
+
+
+class TestBufferIdempotencyKey:
+    """Tests verifying SecurityEvent.idempotency_key survives the buffer lifecycle."""
+
+    @pytest.mark.asyncio
+    async def test_buffer_preserves_idempotency_key_through_add_and_flush(
+        self, buffer: EventBuffer
+    ) -> None:
+        from uuid import UUID
+
+        explicit_key = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+        event = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="10.0.0.2",
+            idempotency_key=explicit_key,
+        )
+
+        await buffer.add_event(event)
+        flushed = await buffer.flush_events()
+
+        assert len(flushed) == 1
+        assert flushed[0].idempotency_key == explicit_key
+
+
+class TestBufferOverflowPolicy:
+    """Tests for the configurable buffer_overflow_policy."""
+
+    def test_overflow_policy_default_is_drop(self) -> None:
+        config = AgentConfig(api_key="k")
+        assert config.buffer_overflow_policy == "drop"
+
+    def test_buffer_full_error_is_guard_agent_error(self) -> None:
+        assert issubclass(BufferFullError, GuardAgentError)
+        assert issubclass(GuardAgentError, Exception)
+
+    @pytest.mark.asyncio
+    async def test_overflow_policy_drop_evicts_oldest_and_increments_counter(
+        self, security_event: SecurityEvent
+    ) -> None:
+        config = AgentConfig(api_key="k", buffer_size=2, buffer_overflow_policy="drop")
+        buffer = EventBuffer(config)
+
+        first = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="1.1.1.1",
+        )
+        second = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="2.2.2.2",
+        )
+        third = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="3.3.3.3",
+        )
+
+        await buffer.add_event(first)
+        await buffer.add_event(second)
+        await buffer.add_event(third)
+
+        assert buffer.events_dropped == 1
+        assert len(buffer.event_buffer) == 2
+        assert first not in list(buffer.event_buffer)
+        assert third in list(buffer.event_buffer)
+
+    @pytest.mark.asyncio
+    async def test_metric_overflow_policy_drop_evicts_oldest(self) -> None:
+        config = AgentConfig(api_key="k", buffer_size=2, buffer_overflow_policy="drop")
+        buffer = EventBuffer(config)
+
+        first = SecurityMetric(
+            timestamp=datetime.now(timezone.utc),
+            metric_type="request_count",
+            value=1.0,
+        )
+        second = SecurityMetric(
+            timestamp=datetime.now(timezone.utc),
+            metric_type="request_count",
+            value=2.0,
+        )
+        third = SecurityMetric(
+            timestamp=datetime.now(timezone.utc),
+            metric_type="request_count",
+            value=3.0,
+        )
+
+        await buffer.add_metric(first)
+        await buffer.add_metric(second)
+        await buffer.add_metric(third)
+
+        assert buffer.metrics_dropped == 1
+        assert len(buffer.metric_buffer) == 2
+        assert first not in list(buffer.metric_buffer)
+        assert third in list(buffer.metric_buffer)
+
+    @pytest.mark.asyncio
+    async def test_overflow_policy_raise_throws_buffer_full_error_for_events(
+        self, security_event: SecurityEvent
+    ) -> None:
+        config = AgentConfig(api_key="k", buffer_size=2, buffer_overflow_policy="raise")
+        buffer = EventBuffer(config)
+
+        await buffer.add_event(security_event)
+        await buffer.add_event(security_event)
+
+        with pytest.raises(BufferFullError):
+            await buffer.add_event(security_event)
+
+        assert len(buffer.event_buffer) == 2
+        assert buffer.events_dropped == 0
+
+    @pytest.mark.asyncio
+    async def test_overflow_policy_raise_throws_buffer_full_error_for_metrics(
+        self, security_metric: SecurityMetric
+    ) -> None:
+        config = AgentConfig(api_key="k", buffer_size=2, buffer_overflow_policy="raise")
+        buffer = EventBuffer(config)
+
+        await buffer.add_metric(security_metric)
+        await buffer.add_metric(security_metric)
+
+        with pytest.raises(BufferFullError):
+            await buffer.add_metric(security_metric)
+
+        assert len(buffer.metric_buffer) == 2
+        assert buffer.metrics_dropped == 0
+
+    @pytest.mark.asyncio
+    async def test_overflow_policy_raise_is_not_swallowed_by_redis_try_block(
+        self,
+        security_event: SecurityEvent,
+        mock_redis_handler: AsyncMock,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        config = AgentConfig(api_key="k", buffer_size=1, buffer_overflow_policy="raise")
+        buffer = EventBuffer(config)
+        await buffer.initialize_redis(mock_redis_handler)
+        await buffer.add_event(security_event)
+
+        with caplog.at_level("ERROR", logger="guard_agent.buffer"):
+            with pytest.raises(BufferFullError):
+                await buffer.add_event(security_event)
+
+        assert not any("Failed to buffer event" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_overflow_policy_block_awaits_until_space_frees_for_events(
+        self, security_event: SecurityEvent
+    ) -> None:
+        config = AgentConfig(api_key="k", buffer_size=2, buffer_overflow_policy="block")
+        buffer = EventBuffer(config)
+
+        await buffer.add_event(security_event)
+        await buffer.add_event(security_event)
+        assert len(buffer.event_buffer) == 2
+
+        third = SecurityEvent(
+            timestamp=datetime.now(timezone.utc),
+            event_type="ip_banned",
+            ip_address="9.9.9.9",
+        )
+        pending = asyncio.create_task(buffer.add_event(third))
+        await asyncio.sleep(0.05)
+        assert not pending.done()
+
+        await buffer.flush_events()
+
+        await asyncio.wait_for(pending, timeout=1.0)
+        assert third in list(buffer.event_buffer)
+        assert buffer.events_dropped == 0
+
+    @pytest.mark.asyncio
+    async def test_overflow_policy_block_awaits_until_space_frees_for_metrics(
+        self, security_metric: SecurityMetric
+    ) -> None:
+        config = AgentConfig(api_key="k", buffer_size=2, buffer_overflow_policy="block")
+        buffer = EventBuffer(config)
+
+        await buffer.add_metric(security_metric)
+        await buffer.add_metric(security_metric)
+        assert len(buffer.metric_buffer) == 2
+
+        third = SecurityMetric(
+            timestamp=datetime.now(timezone.utc),
+            metric_type="request_count",
+            value=99.0,
+        )
+        pending = asyncio.create_task(buffer.add_metric(third))
+        await asyncio.sleep(0.05)
+        assert not pending.done()
+
+        await buffer.flush_metrics()
+
+        await asyncio.wait_for(pending, timeout=1.0)
+        assert third in list(buffer.metric_buffer)
+        assert buffer.metrics_dropped == 0
+
+    @pytest.mark.asyncio
+    async def test_flush_events_with_keys_no_signal_when_buffer_empty(
+        self, buffer: EventBuffer
+    ) -> None:
+        events, keys = await buffer.flush_events_with_keys()
+        assert events == []
+        assert keys == []
+        assert buffer._event_space_available is None
+
+    @pytest.mark.asyncio
+    async def test_flush_metrics_with_keys_no_signal_when_buffer_empty(
+        self, buffer: EventBuffer
+    ) -> None:
+        metrics, keys = await buffer.flush_metrics_with_keys()
+        assert metrics == []
+        assert keys == []
+        assert buffer._metric_space_available is None
+
+    @pytest.mark.asyncio
+    async def test_get_space_event_returns_existing_when_already_initialized(
+        self,
+    ) -> None:
+        config = AgentConfig(api_key="k", buffer_size=2, buffer_overflow_policy="block")
+        buffer = EventBuffer(config)
+
+        first_event = buffer._get_event_space_event()
+        second_event = buffer._get_event_space_event()
+        assert first_event is second_event
+
+        first_metric = buffer._get_metric_space_event()
+        second_metric = buffer._get_metric_space_event()
+        assert first_metric is second_metric
+
+    @pytest.mark.asyncio
+    async def test_overflow_policy_block_resumes_via_clear_buffer(
+        self, security_event: SecurityEvent, security_metric: SecurityMetric
+    ) -> None:
+        config = AgentConfig(api_key="k", buffer_size=1, buffer_overflow_policy="block")
+        buffer = EventBuffer(config)
+
+        await buffer.add_event(security_event)
+        await buffer.add_metric(security_metric)
+
+        pending_event = asyncio.create_task(buffer.add_event(security_event))
+        pending_metric = asyncio.create_task(buffer.add_metric(security_metric))
+        await asyncio.sleep(0.05)
+        assert not pending_event.done()
+        assert not pending_metric.done()
+
+        await buffer.clear_buffer()
+
+        await asyncio.wait_for(pending_event, timeout=1.0)
+        await asyncio.wait_for(pending_metric, timeout=1.0)
