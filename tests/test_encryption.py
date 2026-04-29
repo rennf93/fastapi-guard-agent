@@ -298,6 +298,13 @@ class TestDefaultJsonHandler:
         result = _default_json_handler(dt)
         assert result == "2024-01-01T12:00:00+00:00"
 
+    def test_uuid_serialization(self) -> None:
+        from uuid import UUID
+
+        value = UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+        result = _default_json_handler(value)
+        assert result == "cccccccc-cccc-cccc-cccc-cccccccccccc"
+
     def test_unsupported_type_raises_type_error(self) -> None:
         """Test that unsupported types raise TypeError (line 20)."""
 

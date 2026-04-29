@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Literal
 from urllib.parse import urlparse
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -121,6 +122,7 @@ class SecurityEvent(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+    idempotency_key: UUID = Field(default_factory=uuid4)
     timestamp: datetime
     event_type: str
     ip_address: str = ""

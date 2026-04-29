@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -21,6 +22,8 @@ def _default_json_handler(obj: Any) -> str:
     """Handle non-serializable objects during JSON encoding."""
     if isinstance(obj, datetime):
         return obj.isoformat()
+    if isinstance(obj, UUID):
+        return str(obj)
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
