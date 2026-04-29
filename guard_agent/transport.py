@@ -388,7 +388,7 @@ class HTTPTransport(TransportProtocol):
             label = "Timeout error"
         else:
             label = "Unexpected error"
-        self.logger.error(f"{label} for {method} {url}: {str(exc)}")
+        self.logger.error(f"{label} for {method} {url}: {type(exc).__name__}: {exc!r}")
 
     def _build_encrypted_payload(self, data: dict[str, Any]) -> dict[str, Any]:
         """Serialize events/metrics for encryption."""

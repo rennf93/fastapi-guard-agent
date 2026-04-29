@@ -1438,3 +1438,91 @@ class TestHTTPTransportCompression:
         assert isinstance(sent_body, bytes)
         decoded = gzip.decompress(sent_body)
         assert b"ip_banned" in decoded
+
+
+class TestLogRequestError:
+    """Tests for HTTPTransport._log_request_error.
+
+    Reason for the type+repr formatting: transport-level connection drops
+    (CloudFlare/origin RST mid-stream, half-closed sockets) raise httpx
+    exceptions whose ``str(exc)`` is empty. Logging only ``str(exc)`` produced
+    error lines like ``HTTP client error for POST <url>:`` with no diagnostic
+    info, hiding which httpx class actually fired. The format must surface the
+    exception class and its repr so operators can distinguish RemoteProtocolError
+    from ReadTimeout from ConnectError without a debugger.
+    """
+
+    @pytest.mark.asyncio
+    async def test_log_includes_exception_class_when_str_exc_is_empty(
+        self,
+        agent_config: AgentConfig,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        transport = HTTPTransport(agent_config)
+        empty_protocol_error = httpx.RemoteProtocolError("")
+        assert str(empty_protocol_error) == ""
+
+        with caplog.at_level("ERROR", logger="guard_agent.transport"):
+            transport._log_request_error("POST", "https://x/y", empty_protocol_error)
+
+        records = [r for r in caplog.records if r.levelname == "ERROR"]
+        assert len(records) == 1
+        message = records[0].getMessage()
+        assert "HTTP client error for POST https://x/y:" in message
+        assert "RemoteProtocolError" in message
+
+    @pytest.mark.asyncio
+    async def test_log_classifies_encryption_error(
+        self,
+        agent_config: AgentConfig,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from guard_agent.encryption import EncryptionError
+
+        transport = HTTPTransport(agent_config)
+        with caplog.at_level("ERROR", logger="guard_agent.transport"):
+            transport._log_request_error(
+                "POST", "https://x/y", EncryptionError("decrypt failed")
+            )
+
+        records = [r for r in caplog.records if r.levelname == "ERROR"]
+        assert len(records) == 1
+        message = records[0].getMessage()
+        assert message.startswith("Encryption error for POST https://x/y:")
+        assert "EncryptionError" in message
+        assert "decrypt failed" in message
+
+    @pytest.mark.asyncio
+    async def test_log_classifies_timeout_error(
+        self,
+        agent_config: AgentConfig,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        transport = HTTPTransport(agent_config)
+        with caplog.at_level("ERROR", logger="guard_agent.transport"):
+            transport._log_request_error("POST", "https://x/y", asyncio.TimeoutError())
+
+        records = [r for r in caplog.records if r.levelname == "ERROR"]
+        assert len(records) == 1
+        message = records[0].getMessage()
+        assert message.startswith("Timeout error for POST https://x/y:")
+        assert "TimeoutError" in message
+
+    @pytest.mark.asyncio
+    async def test_log_classifies_unexpected_error(
+        self,
+        agent_config: AgentConfig,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        transport = HTTPTransport(agent_config)
+        with caplog.at_level("ERROR", logger="guard_agent.transport"):
+            transport._log_request_error(
+                "POST", "https://x/y", ValueError("bad payload")
+            )
+
+        records = [r for r in caplog.records if r.levelname == "ERROR"]
+        assert len(records) == 1
+        message = records[0].getMessage()
+        assert message.startswith("Unexpected error for POST https://x/y:")
+        assert "ValueError" in message
+        assert "bad payload" in message

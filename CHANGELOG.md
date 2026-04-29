@@ -3,6 +3,16 @@ Release Notes
 
 ___
 
+v2.4.1 (2026-04-29)
+-------------------
+
+Diagnostic-friendly transport error logging (v2.4.1)
+----------------------------------------------------
+
+- **Fixed** — `HTTPTransport._log_request_error` now formats the captured exception as `<ClassName>: <repr>` instead of `str(exc)`. Several httpx exception classes raised on transport-level connection drops (`RemoteProtocolError`, `WriteError`, some `httpcore` wrappers) carry no message body, so `str(exc)` rendered empty and the previous error line was `HTTP client error for POST <url>:` with no diagnostic suffix. Operators chasing a CloudFlare/origin RST storm could not tell which httpx class actually fired without attaching a debugger. The new format always shows the class identity even when the message is empty, e.g. `HTTP client error for POST https://example/api/v1/events/encrypted: RemoteProtocolError: RemoteProtocolError('')`. No behavior change beyond log accuracy. Coverage on `guard_agent/transport.py` maintained at 100% line + 100% branch.
+
+___
+
 v2.4.0 (2026-04-29)
 -------------------
 
