@@ -273,6 +273,10 @@ agent = guard_agent(config)
 -   **`buffer_size: int`**: Maximum events in memory buffer before automatic flush (Default: `100`)
 -   **`flush_interval: int`**: Automatic buffer flush interval in seconds (Default: `30`)
 -   **`max_payload_size: int`**: Maximum payload size in bytes before truncation (Default: `1024`)
+-   **`buffer_overflow_policy: Literal["drop", "block", "raise"]`**: Behavior when the in-memory buffer is full (Default: `"drop"`)
+    -   `"drop"`: silently evict the oldest entry; production-safe for high-throughput, loses events when the SaaS endpoint is unreachable
+    -   `"block"`: backpressure the caller until a flush frees space; appropriate when event integrity matters more than request latency
+    -   `"raise"`: throw `BufferFullError` so callers can react; appropriate in tests or strict environments
 
 #### Feature Control
 -   **`enable_metrics: bool`**: Enable performance metrics collection (Default: `True`)
