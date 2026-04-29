@@ -1,113 +1,105 @@
 # FastAPI Adapter — `fastapi-guard`
 
-Guard Agent integrates with FastAPI through the [`fastapi-guard`](https://pypi.org/project/fastapi-guard/) middleware. Because FastAPI is async, the agent's background flush loop needs to be started and stopped from within the app's event loop — this is done via a FastAPI `lifespan` context manager.
+Guard Agent integrates with FastAPI through the [`fastapi-guard`](https://pypi.org/project/fastapi-guard/) middleware. **You do not call the `guard_agent()` factory yourself** — `fastapi-guard`'s `SecurityMiddleware` creates the agent, wires it into the request pipeline, and drives its async lifecycle (start, flush loop, status loop, dynamic-rule loop, stop) for you.
+
+The integration surface is *only* the `agent_*` fields on `SecurityConfig`. Past versions of this doc showed an explicit `AgentConfig` + `lifespan` pattern; that pattern silently creates a second singleton (`SyncGuardAgentHandler` from sync module-load context, vs the `GuardAgentHandler` the middleware controls) and the events you think are flowing don't reach the dashboard. **Do not use it.**
 
 ## Install
 
-```bash
-uv add fastapi-guard guard-agent
-```
+=== "uv"
 
-Alternatives:
+    ```bash
+    uv add fastapi-guard guard-agent
+    ```
 
-```bash
-poetry add fastapi-guard guard-agent
-```
+=== "poetry"
 
-```bash
-pip install fastapi-guard guard-agent
-```
+    ```bash
+    poetry add fastapi-guard guard-agent
+    ```
+
+=== "pip"
+
+    ```bash
+    pip install fastapi-guard guard-agent
+    ```
 
 ## Minimal example
 
-The canonical pattern below mirrors `guard-core-app/examples/app.py`. Key points:
-
-1. Build a `SecurityConfig` with the `agent_*` fields wired to your credentials.
-2. Build an explicit `AgentConfig` (same credentials — the `guard_agent()` factory is a singleton, so creating one here gives you a reference for `await agent.start()` / `await agent.stop()`).
-3. Wrap both in a `lifespan` async context manager.
-4. Attach `SecurityMiddleware` and (optionally) the `SecurityDecorator` to `app.state`.
-
 ```python
 import os
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from guard import SecurityConfig, SecurityDecorator, SecurityMiddleware
-from guard_agent import AgentConfig, guard_agent
+from guard import SecurityConfig, SecurityMiddleware
 
-api_key = os.environ.get("GUARD_API_KEY", "")
-project_id = os.environ.get("GUARD_PROJECT_ID", "")
-core_url = os.environ.get("GUARD_CORE_URL", "https://api.guard-core.com")
+try:
+    from guard import __version__ as _GUARD_VERSION
+except ImportError:
+    _GUARD_VERSION = None
 
-security_config = SecurityConfig(
-    # Security settings
-    auto_ban_threshold=5,
-    auto_ban_duration=300,
-    enable_rate_limiting=True,
+config = SecurityConfig(
+    # Local protection (independent of the agent)
+    enable_redis=True,
+    redis_url="redis://localhost:6379",
     rate_limit=100,
     rate_limit_window=60,
+    auto_ban_threshold=5,
+    auto_ban_duration=300,
+    enable_penetration_detection=True,
 
     # Agent telemetry
-    enable_agent=bool(api_key),
-    agent_api_key=api_key,
-    agent_endpoint=core_url,
-    agent_project_id=project_id,
+    enable_agent=True,
+    agent_api_key=os.environ["GUARD_API_KEY"],
+    agent_project_id=os.environ["GUARD_PROJECT_ID"],
+    agent_endpoint="https://api.guard-core.com",
     agent_buffer_size=5000,
     agent_flush_interval=2,
     agent_enable_events=True,
     agent_enable_metrics=True,
+    agent_guard_version=_GUARD_VERSION,
 
-    # Dynamic rules from the dashboard
-    enable_dynamic_rules=bool(api_key),
+    # Optional — pull dynamic rule updates from the dashboard
+    enable_dynamic_rules=True,
     dynamic_rule_interval=60,
 )
 
-agent_config = AgentConfig(
-    api_key=api_key,
-    endpoint=core_url,
-    project_id=project_id,
-    buffer_size=5000,
-    flush_interval=2,
-)
-
-agent = guard_agent(agent_config) if api_key else None
-guard = SecurityDecorator(security_config)
-
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    if agent:
-        await agent.start()
-    yield
-    if agent:
-        await agent.stop()
-
-
-app = FastAPI(title="Example App", lifespan=lifespan)
-app.add_middleware(SecurityMiddleware, config=security_config)
-SecurityMiddleware.configure_cors(app, security_config)
-app.state.guard_decorator = guard
-
-
-@app.get("/")
-async def root() -> dict[str, str]:
-    return {"message": "Hello, Guard!"}
+app = FastAPI()
+app.add_middleware(SecurityMiddleware, config=config)
 ```
 
-## Why `lifespan` is required
+That is the entire integration. No `AgentConfig`, no `lifespan` hook, no `guard_agent()` call.
 
-`SecurityMiddleware` creates the `GuardAgentHandler` eagerly when `config.enable_agent=True`, but it does **not** start the handler's async flush loop on its own. Without `await agent.start()` running inside the FastAPI event loop, events buffer indefinitely and never flush to the dashboard. The `lifespan` context manager is the correct place to drive this lifecycle.
+## Encrypted telemetry
 
-If you skip the explicit `AgentConfig` and only wire credentials through `SecurityConfig`, the middleware still creates a handler (via `SecurityConfig.to_agent_config()` internally). You can still drive its lifecycle from `lifespan` by retrieving the handler from the middleware after install, but the explicit pattern above is clearer and matches the canonical example in `guard-core-app/examples/`.
+For deployments where end-to-end payload encryption between agent and SaaS is a contract requirement (PII processing, regulated industries), add a per-project encryption key paired with an encryption-enforced API key:
+
+```python
+config = SecurityConfig(
+    # ... everything above ...
+    agent_api_key=os.environ["GUARD_API_KEY_W_ENCRYPTION"],
+    agent_project_encryption_key=os.environ["GUARD_PROJECT_ENCRYPTION_KEY"],
+)
+```
+
+When `agent_project_encryption_key` is set, the agent posts to `POST /api/v1/events/encrypted` with the body encrypted client-side via AES-256-GCM. The encryption key is **paired** with a specific API key in the dashboard — mixing keys produces `HTTP 400: Failed to decrypt payload`.
+
+## How the lifecycle is actually driven
+
+`SecurityMiddleware.__init__` calls `SecurityConfig.to_agent_config()` and passes the result to `guard_agent(agent_config)`, getting back a `GuardAgentHandler` singleton. On the first request, the middleware's lazy initializer (`_ensure_initialized`) calls `composite_handler.start()`, which in turn calls `agent_handler.start()` — that's what kicks off the buffer's auto-flush task, the status loop, and the dynamic-rules poller. On app shutdown the inverse happens via `composite_handler.stop()`.
+
+You don't see any of this in your code, and you don't need to.
+
+## When you need the full guide
+
+For the decision tree across all three integration paths (standalone / SaaS / encrypted SaaS), env-var conventions, common pitfalls (nginx body limits, key/api-key pairing, circuit-breaker behavior), see the canonical [**fastapi-guard Integration Guide**](https://rennf93.github.io/fastapi-guard/latest/tutorial/integration/).
 
 ## Dashboard & Playground
 
-- Obtain your API key and project ID at [**app.guard-core.com**](https://app.guard-core.com).
+- Get an API key and project ID at [**app.guard-core.com**](https://app.guard-core.com).
 - Try the full stack without installing anything at [**playground.guard-core.com**](https://playground.guard-core.com).
 
 ## Related
 
 - [`fastapi-guard` on GitHub](https://github.com/rennf93/fastapi-guard)
-- [`fastapi-guard` documentation](https://rennf93.github.io/fastapi-guard/)
+- [`fastapi-guard` integration guide](https://rennf93.github.io/fastapi-guard/latest/tutorial/integration/) — full decision tree + pitfalls
 - [Canonical full example](https://github.com/rennf93/guard-core-app/blob/master/examples/app.py) in `guard-core-app`
