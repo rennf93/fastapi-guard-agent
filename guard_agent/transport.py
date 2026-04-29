@@ -179,6 +179,7 @@ class HTTPTransport(TransportProtocol):
                 batch_id=generate_batch_id(),
                 created_at=get_current_timestamp(),
                 agent_version=_AGENT_VERSION,
+                guard_version=self.config.guard_version,
             )
 
             return await self._send_with_retry(
@@ -202,6 +203,7 @@ class HTTPTransport(TransportProtocol):
                 batch_id=generate_batch_id(),
                 created_at=get_current_timestamp(),
                 agent_version=_AGENT_VERSION,
+                guard_version=self.config.guard_version,
             )
 
             return await self._send_with_retry(
@@ -404,6 +406,7 @@ class HTTPTransport(TransportProtocol):
             "encrypted_payload": encrypted_payload,
             "batch_id": data.get("batch_id"),
             "agent_version": _AGENT_VERSION,
+            "guard_version": self.config.guard_version,
         }
         encrypted_url = f"{self.config.endpoint.rstrip('/')}/api/v1/events/encrypted"
         json_data = await safe_json_serialize(encrypted_data)

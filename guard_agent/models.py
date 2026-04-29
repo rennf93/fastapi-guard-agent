@@ -96,6 +96,16 @@ class AgentConfig(BaseModel):
         description="Project-specific encryption key for secure telemetry transmission",
     )
 
+    guard_version: str | None = Field(
+        default=None,
+        description=(
+            "Version of the framework integration that wraps this agent "
+            "(e.g. fastapi-guard middleware version). The framework adapter "
+            "sets this at agent init time so the SaaS can attribute telemetry "
+            "to the wrapper version rather than just the agent version."
+        ),
+    )
+
     compression_enabled: bool = Field(
         default=True,
         description=(
@@ -259,3 +269,6 @@ class EventBatch(BaseModel):
     created_at: datetime
     compressed: bool = Field(default=False)
     agent_version: str | None = Field(default=None, description="Agent version string")
+    guard_version: str | None = Field(
+        default=None, description="Framework integration version (e.g. fastapi-guard)"
+    )

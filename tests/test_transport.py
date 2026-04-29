@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from datetime import datetime, timezone
 from typing import Any, cast
@@ -56,6 +57,53 @@ class TestHTTPTransport:
 
         assert result is True
         mock_client.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_send_events_includes_guard_version_in_payload(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        agent_config.guard_version = "6.0.0"
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        events = [
+            SecurityEvent(
+                timestamp=datetime.now(timezone.utc),
+                event_type="ip_banned",
+                ip_address="192.168.1.1",
+                action_taken="banned",
+                reason="test",
+            )
+        ]
+
+        await transport.send_events(events)
+
+        body = mock_client.post.call_args.kwargs["content"]
+        payload = json.loads(body)
+        assert payload["guard_version"] == "6.0.0"
+        assert payload["agent_version"]
+
+    @pytest.mark.asyncio
+    async def test_send_metrics_includes_guard_version_in_payload(
+        self, agent_config: AgentConfig, mock_client: AsyncMock
+    ) -> None:
+        agent_config.guard_version = "6.0.0"
+        transport = HTTPTransport(agent_config)
+        transport._client = mock_client
+
+        metrics = [
+            SecurityMetric(
+                timestamp=datetime.now(timezone.utc),
+                metric_type="request_count",
+                value=1.0,
+            )
+        ]
+
+        await transport.send_metrics(metrics)
+
+        body = mock_client.post.call_args.kwargs["content"]
+        payload = json.loads(body)
+        assert payload["guard_version"] == "6.0.0"
 
     @pytest.mark.asyncio
     async def test_send_events_failure(
