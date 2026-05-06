@@ -78,11 +78,8 @@ Guard Agent is embedded by each framework's adapter — enable it via the adapte
 
 ```python
 from fastapi import FastAPI
-from guard import SecurityConfig, SecurityMiddleware
+from guard import SecurityConfig, SecurityDecorator, SecurityMiddleware
 
-app = FastAPI()
-
-# Configure FastAPI Guard with built-in agent support
 config = SecurityConfig(
     # Basic security settings
     auto_ban_threshold=5,
@@ -105,8 +102,11 @@ config = SecurityConfig(
     dynamic_rule_interval=300,
 )
 
-# Add security middleware - events are sent automatically
-middleware = SecurityMiddleware(app, config=config)
+guard = SecurityDecorator(config)
+
+app = FastAPI()
+app.add_middleware(SecurityMiddleware, config=config)
+app.state.guard_decorator = guard
 
 @app.get("/")
 async def root():
@@ -174,8 +174,6 @@ The recommended approach leverages FastAPI Guard's built-in agent support for au
 from fastapi import FastAPI
 from guard import SecurityConfig, SecurityMiddleware
 
-app = FastAPI()
-
 config = SecurityConfig(
     # Enable agent
     enable_agent=True,
@@ -188,7 +186,8 @@ config = SecurityConfig(
     rate_limit_window=60,
 )
 
-middleware = SecurityMiddleware(app, config=config)
+app = FastAPI()
+app.add_middleware(SecurityMiddleware, config=config)
 
 # Agent automatically initialized with comprehensive event collection
 ```

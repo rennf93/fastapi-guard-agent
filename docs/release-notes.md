@@ -3,6 +3,20 @@ Release Notes
 
 ___
 
+v2.5.0 (2026-05-06)
+-------------------
+
+Install ID fingerprinting and optional HMAC payload signing (v2.5.0)
+--------------------------------------------------------------------
+
+- **Added** — Persistent install ID. Each agent process now resolves a stable UUID per installation (default storage at `~/.guard-agent/install-id`, override via `AgentConfig.install_id`), sent on every request as `X-Agent-Install-Id`. The server uses this to detect when a single API key is being used from many distinct installs (a signal that the key has leaked or is being shared across hosts). Auto-creates the file on first call; OSError on read or write is logged via `logger.exception` and falls through to a fresh UUID rather than failing the start-up. New module: `guard_agent.install_id` exposing `resolve_install_id(*, state_path, override)`.
+- **Added** — Opt-in HMAC-SHA256 payload signing. When `AgentConfig.payload_signing_secret` is set, every outbound request carries `X-Payload-Signature: v1=<hex>` computed over the exact bytes that go on the wire — post-gzip and post-encryption — so the server can verify integrity against `request.body()` without re-decoding. No header is sent when the secret is unset, preserving the existing default behavior. New module: `guard_agent.signing` exposing `sign_payload(body, *, secret)`.
+- **Added** — Two new fields on `AgentConfig`: `install_id: str | None` (override the auto-resolved install ID) and `payload_signing_secret: str | None` (HMAC secret; both default to `None`).
+- **Changed** — Transport sets the install-ID header once on the cached `httpx.AsyncClient` default headers (applies to every request) and computes the signature per-request inside both encrypted and unencrypted send paths.
+- Tests added for both modules, full suite at 363 passed / 2 skipped.
+
+___
+
 v2.4.1 (2026-04-29)
 -------------------
 
