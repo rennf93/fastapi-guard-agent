@@ -195,14 +195,14 @@ middleware = SecurityMiddleware(app, config=config)
 
 ### Advanced Usage Pattern
 
-For specialized use cases requiring direct agent control, such as custom event handling or integration with non-FastAPI Guard systems:
+!!! warning "Do not use this pattern with fastapi-guard"
+    The snippet below uses `guard_agent()` directly. If your app already uses `fastapi-guard`'s `SecurityMiddleware`, **do not** also call `guard_agent()` from your module-level code. The factory dispatches to `SyncGuardAgentHandler` when called from sync context (module load) and `GuardAgentHandler` when called from async context (the middleware's init) — they are **separate singletons**, and only the middleware's instance receives the telemetry stream. For fastapi-guard users, configure `agent_*` fields on `SecurityConfig` instead. See the [fastapi-guard Integration Guide](https://rennf93.github.io/fastapi-guard/latest/tutorial/integration/).
+
+For specialized use cases that *don't* go through a framework adapter — custom event reporting in a worker, direct agent embedding in a non-adapter system, or sync-only frameworks (Flask, Django) integrated with `SyncGuardAgentHandler`:
 
 ```python
-from fastapi import FastAPI
 from guard_agent import guard_agent, AgentConfig, SecurityEvent
 from guard_agent.utils import get_current_timestamp
-
-app = FastAPI()
 
 # Configure agent directly
 config = AgentConfig(
@@ -213,29 +213,20 @@ config = AgentConfig(
 )
 
 agent = guard_agent(config)
+await agent.start()
 
-@app.on_event("startup")
-async def startup_event():
-    await agent.start()
+# Manually send an event
+event = SecurityEvent(
+    timestamp=get_current_timestamp(),
+    event_type="custom_rule_triggered",
+    ip_address="192.168.1.100",
+    action_taken="logged",
+    reason="Manual event",
+)
+await agent.send_event(event)
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    await agent.stop()
-
-@app.post("/report-event")
-async def report_event():
-    # Manually send an event
-    event = SecurityEvent(
-        timestamp=get_current_timestamp(),
-        event_type="custom_rule_triggered",
-        ip_address="192.168.1.100",
-        action_taken="logged",
-        reason="Manual event",
-        endpoint="/report-event",
-        method="POST",
-    )
-    await agent.send_event(event)
-    return {"status": "event sent"}
+# At shutdown
+await agent.stop()
 ```
 
 ___

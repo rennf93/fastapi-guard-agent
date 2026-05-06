@@ -13,6 +13,7 @@ from guard_agent.encryption import (
     PayloadEncryptor,
     create_encryptor,
 )
+from guard_agent.install_id import resolve_install_id
 from guard_agent.models import (
     AgentConfig,
     AgentStatus,
@@ -22,6 +23,7 @@ from guard_agent.models import (
     SecurityMetric,
 )
 from guard_agent.protocols import TransportProtocol
+from guard_agent.signing import sign_payload
 from guard_agent.utils import (
     CircuitBreaker,
     RateLimitedError,
@@ -48,6 +50,7 @@ class HTTPTransport(TransportProtocol):
 
         self._client: httpx.AsyncClient | None = None
         self._pid = os.getpid()
+        self._install_id = resolve_install_id(override=config.install_id)
 
         self._encryptor: PayloadEncryptor | None = None
         self._encryption_enabled = False
@@ -136,6 +139,7 @@ class HTTPTransport(TransportProtocol):
                 "User-Agent": f"guard-agent/{_AGENT_VERSION}",
                 "Content-Type": "application/json",
                 "X-API-Key": self.config.api_key,
+                "X-Agent-Install-Id": self._install_id,
             }
 
             if self.config.project_id:
@@ -421,6 +425,9 @@ class HTTPTransport(TransportProtocol):
         encrypted_url = f"{self.config.endpoint.rstrip('/')}/api/v1/events/encrypted"
         json_data = await safe_json_serialize(encrypted_data)
         body, headers = self._maybe_compress(json_data)
+        signature = sign_payload(body, secret=self.config.payload_signing_secret)
+        if signature is not None:
+            headers["X-Payload-Signature"] = signature
         self.bytes_sent += len(body)
         response = await self._client.post(encrypted_url, content=body, headers=headers)
         return await self._handle_response(response)
@@ -432,6 +439,9 @@ class HTTPTransport(TransportProtocol):
         assert self._client is not None
         json_data = await safe_json_serialize(data)
         body, headers = self._maybe_compress(json_data)
+        signature = sign_payload(body, secret=self.config.payload_signing_secret)
+        if signature is not None:
+            headers["X-Payload-Signature"] = signature
         self.bytes_sent += len(body)
         response = await self._client.post(url, content=body, headers=headers)
         return await self._handle_response(response)
