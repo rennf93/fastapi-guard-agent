@@ -119,6 +119,15 @@ class AgentConfig(BaseModel):
         description="Minimum body size in bytes before gzip compression applies",
     )
 
+    install_id: str | None = Field(
+        default=None,
+        description="Override agent install ID (auto-generated if not set)",
+    )
+    payload_signing_secret: str | None = Field(
+        default=None,
+        description="HMAC-SHA256 secret for X-Payload-Signature header",
+    )
+
     @field_validator("endpoint")
     @classmethod
     def validate_endpoint(cls, v: str) -> str:
