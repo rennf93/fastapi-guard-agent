@@ -60,6 +60,16 @@ class AgentConfig(BaseModel):
     flush_interval: int = Field(
         default=30, description="Buffer flush interval in seconds"
     )
+    dynamic_rule_interval: int = Field(
+        default=300,
+        ge=60,
+        description="Interval in seconds between dynamic rule polls",
+    )
+    status_interval: int = Field(
+        default=300,
+        ge=60,
+        description="Interval in seconds between agent status reports",
+    )
     high_watermark_ratio: float = Field(
         default=0.8, description="Buffer occupancy ratio that triggers early flush"
     )

@@ -14,6 +14,7 @@ Install ID fingerprinting and optional HMAC payload signing (v2.5.0)
 - **Added** — Two new fields on `AgentConfig`: `install_id: str | None` (override the auto-resolved install ID) and `payload_signing_secret: str | None` (HMAC secret; both default to `None`).
 - **Changed** — Transport sets the install-ID header once on the cached `httpx.AsyncClient` default headers (applies to every request) and computes the signature per-request inside both encrypted and unencrypted send paths.
 - Tests added for both modules, full suite at 363 passed / 2 skipped.
+- **Added** — `AgentConfig.dynamic_rule_interval: int` (default 300, ge=60) and `AgentConfig.status_interval: int` (default 300, ge=60). `_rules_loop` and `_status_loop` previously hardcoded `await asyncio.sleep(300)`, ignoring any caller-configured value. Now read from config so `SecurityConfig.dynamic_rule_interval` and `SecurityConfig.agent_status_interval` (in `guard-core >= 3.1.0`) actually take effect.
 
 ___
 

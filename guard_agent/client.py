@@ -304,7 +304,7 @@ class GuardAgentHandler(AgentHandlerProtocol):
     async def _status_loop(self) -> None:
         while self._running:
             try:
-                await asyncio.sleep(300)
+                await asyncio.sleep(self.config.status_interval)
                 if self._running:
                     status = await self.get_status()
                     await self.transport.send_status(status)
@@ -316,7 +316,7 @@ class GuardAgentHandler(AgentHandlerProtocol):
     async def _rules_loop(self) -> None:
         while self._running:
             try:
-                await asyncio.sleep(300)
+                await asyncio.sleep(self.config.dynamic_rule_interval)
                 if self._running:
                     await self.get_dynamic_rules()
             except asyncio.CancelledError:
